@@ -1,2 +1,2 @@
-# raft
-Raft implementation in Elixir
+# graft
+Generalised raft implementation in Elixir
