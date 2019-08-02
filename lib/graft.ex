@@ -3,16 +3,12 @@ defmodule Graft do
   Documentation for Graft.
   """
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Graft.hello()
-      :world
-
-  """
-  def hello do
-    :world
+  def start(servers) do
+    case servers do
+        0 -> :ok
+        x ->
+            Graft.Server.start
+            start(x-1)
+    end
   end
 end
