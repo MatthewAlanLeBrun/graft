@@ -11,3 +11,15 @@ defmodule Graft.AppendEntriesRPCReply do
     defstruct term: -1,             # current_term, for leader to update itself
               success: false        # true if follower contained entry matching prev_log_index and prev_log_term
 end
+
+defmodule Graft.RequestVoteRPC do
+    defstruct term: -1,             # candidate’s term
+              candidate_pid: nil,   # candidate requesting vote
+              last_log_index: -1.   # index of candidate’s last log entry
+              last_log_term: -1     # term of candidate’s last log entry
+end
+
+defmodule Graft.RequestVoteRPCReply do
+    defstruct term: -1,
+              vote_granted: false
+end
