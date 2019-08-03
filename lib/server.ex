@@ -7,7 +7,9 @@ defmodule Graft.Server do
         receive do
             {:msg, msg} -> IO.puts(msg)
         after
-            1_000 -> IO.puts("Still a follower, want to move to candidate")
+            10_000 ->
+                IO.puts("Timed out, beginning election") 
+                candidate()
         end
         follower()
     end
