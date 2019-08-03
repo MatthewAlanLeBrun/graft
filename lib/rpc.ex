@@ -20,6 +20,6 @@ defmodule Graft.RequestVoteRPC do
 end
 
 defmodule Graft.RequestVoteRPCReply do
-    defstruct term: -1,
-              vote_granted: false
+    defstruct term: -1,             # current_term, for candidate to update itself
+              vote_granted: false   # true means candidate received vote
 end
