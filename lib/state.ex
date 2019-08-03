@@ -1,3 +1,8 @@
+defmodule Graft.State.Server.General do
+    defstruct time_out: 0,          # random time out of server
+              state: :follower      # current state of the server
+end
+
 defmodule Graft.State.Server.Persistent do
     defstruct current_term: 0,      # latest term server has seen
               voted_for: nil,       # candidate_pid that received vote in current term (or null if none)
@@ -12,6 +17,11 @@ end
 defmodule Graft.State.Leader.Volatile do
     defstruct next_index: [],       # for each server, index of the next log entry to send to that server
               match_index: []       # for each server, index of highest log entry known to be replicated on server
+end
+
+defmodule Graft.State.Cluster do
+    defstruct server_count: 0,      # number of servers in the cluster
+              server_pids: []       # pids of each server in the cluster
 end
 
 defmodule Graft.State do
