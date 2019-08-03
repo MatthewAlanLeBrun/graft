@@ -25,8 +25,19 @@ defmodule Graft.State.Cluster do
 end
 
 defmodule Graft.State do
-    def create_state do
-        spawn_link(fn -> state(%Graft.State.Server.Persistent{}) end)
+    def create_state(:general, time_out_ms), do: spawn_link(fn -> state(%Graft.State.Server.General{time_out: time_out_ms}) end)
+
+    defp state(%Graft.State.Server.General{} = state) do
+        receive do
+            {:get, :time_out, server} ->
+                send server, state.time_out
+                state(state)
+            {:get, :state, server} ->
+                send server, state.state
+                state(state)
+            {:put, :state, new_state} ->
+                state(%Graft.State.Server.General{state | state: new_state})
+        end
     end
 
     defp state(%Graft.State.Server.Persistent{} = state) do
