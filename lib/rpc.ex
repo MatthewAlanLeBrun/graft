@@ -15,7 +15,7 @@ end
 defmodule Graft.RequestVoteRPC do
     defstruct term: -1,             # candidate’s term
               candidate_pid: nil,   # candidate requesting vote
-              last_log_index: -1.   # index of candidate’s last log entry
+              last_log_index: -1,   # index of candidate’s last log entry
               last_log_term: -1     # term of candidate’s last log entry
 end
 
