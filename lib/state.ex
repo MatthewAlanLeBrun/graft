@@ -13,3 +13,20 @@ defmodule Graft.State.Leader.Volatile do
     defstruct next_index: [],       # for each server, index of the next log entry to send to that server
               match_index: []       # for each server, index of highest log entry known to be replicated on server
 end
+
+defmodule Graft.State do
+    def create_state do
+        spawn_link(fn -> state(%Graft.State.Server.Persistent{}) end)
+    end
+
+    defp state(%Graft.State.Server.Persistent{} = state) do
+        receive do
+            {:get, :current_term, server} ->
+                send server, state.current_term
+                state(state)
+            {:get, :voted_for, server} ->
+                send server, state.voted_for
+                state(state)
+        end
+    end
+end
