@@ -25,29 +25,23 @@ defmodule Graft.State.Cluster do
 end
 
 defmodule Graft.State do
-    def create_state(:general, time_out_ms), do: spawn_link(fn -> state(%Graft.State.Server.General{time_out: time_out_ms}) end)
+    defstruct general:    %Graft.State.Server.General{},
+              persistent: %Graft.State.Server.Persistent{},
+              volatile:   %Graft.State.Server.Volatile{},
+              leader:     nil
 
-    defp state(%Graft.State.Server.General{} = state) do
-        receive do
-            {:get, :time_out, server} ->
-                send server, state.time_out
-                state(state)
-            {:get, :state, server} ->
-                send server, state.state
-                state(state)
-            {:put, :state, new_state} ->
-                state(%Graft.State.Server.General{state | state: new_state})
-        end
+    def create_state do
+        spawn_link(fn() -> state(%Graft.State{}) end);
     end
 
-    defp state(%Graft.State.Server.Persistent{} = state) do
+    defp state(%Graft.State{} = state) do
         receive do
-            {:get, :current_term, server} ->
-                send server, state.current_term
+            {:get, within, key, from} ->
+                send from, Map.get(state, within) |> Map.get(key)
                 state(state)
-            {:get, :voted_for, server} ->
-                send server, state.voted_for
-                state(state)
+            {:put, into, struct_name, key, value} ->
+                update = struct(struct_name, Map.get(state,into) |> Map.put(key, value))
+                state(struct(Graft.State, Map.put(state, into, update)))
         end
     end
 end
