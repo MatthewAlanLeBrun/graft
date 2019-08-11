@@ -1,10 +1,13 @@
 defmodule Graft.Server do
+    alias Graft.State, as: State
+
     def start do
         spawn fn -> init() end
     end
 
     def init() do
-        Process.register(Graft.State.create_state(:general, generate_time_out(), general_state())
+        Graft.StateFactory.new_state()
+        State.update(:general, :time_out, generate_time_out())
         follower()
     end
 
@@ -14,7 +17,7 @@ defmodule Graft.Server do
                 IO.puts(msg)
                 follower()
         after
-            ms = time_out() ->
+            ms = State.get(:general, :time_out) ->
                 IO.puts("Timed out #{ms}, beginning election")
                 candidate()
         end
@@ -28,15 +31,5 @@ defmodule Graft.Server do
 
     end
 
-    defp generate_time_out do: :rand.uniform(50)*100+5000)
-
-    defp time_out do
-        send general_state(), {:get, :time_out, self()}
-        receive do ms -> ms end
-    end
-
-    defp general_state do
-        pid_string = String.replace((inspect self()), ["#",".","<",">"], "_")
-        String.to_atom("general_state" <> pid_string)
-    end
+    def generate_time_out do :rand.uniform(500)*10+5000 end
 end
