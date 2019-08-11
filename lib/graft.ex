@@ -4,6 +4,7 @@ defmodule Graft do
   """
 
   def start(servers) do
+    Graft.StateFactory.start()
     case servers do
         0 -> :ok
         x ->
