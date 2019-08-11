@@ -34,14 +34,24 @@ defmodule Graft.State do
         spawn_link(fn() -> state(%Graft.State{}) end);
     end
 
+    def update(struct, key, value) do
+        send Graft.StateFactory.get_state(), {:put, struct, key, value}
+    end
+
+    def get(struct, key) do
+        send Graft.StateFactory.get_state(), {:get, struct, key, self()}
+        receive do
+            {:ok, data} -> data
+        end
+    end
+
     defp state(%Graft.State{} = state) do
         receive do
             {:get, within, key, from} ->
-                send from, Map.get(state, within) |> Map.get(key)
+                send from, {:ok, Map.get(state, within) |> Map.get(key)}
                 state(state)
-            {:put, into, struct_name, key, value} ->
-                update = struct(struct_name, Map.get(state,into) |> Map.put(key, value))
-                state(struct(Graft.State, Map.put(state, into, update)))
+            {:put, into, key, value} ->
+                Map.put(state, into, Map.get(state, into) |> Map.put(key, value)) |> state()
         end
     end
 end
