@@ -13,19 +13,18 @@ defmodule Graft.Server do
     end
 
     def follower(:cast, :start, data) do
-        {:keep_state_and_data, [{:timeout, data.time_out, :begin_election}]}
+        {:keep_state_and_data, [{{:timeout, :election_timeout}, data.time_out, :begin_election}]}
     end
 
-    def follower(:timeout, :begin_election, data) do
+    def follower({:timeout, :election_timeout}, :begin_election, data) do
         {:next_state,
          :candidate,
-         %Graft.State{data | state: :candidate, current_term: data.current_term+1},
+         %Graft.State{data | state: :candidate, current_term: data.current_term+1, voted_for: data.me},
          [{:next_event, :cast, :request_votes}]}
     end
 
     def follower({:call, from}, :data, data) do
-        {:keep_state_and_data, [{:reply, from, data},
-                                {:next_event, :cast, :start}]}
+        {:keep_state_and_data, [{:reply, from, data}]}
     end
 
     def follower({:call, from}, {:request_vote, rpc = %Graft.RequestVoteRPC{}}, data) do
@@ -35,17 +34,17 @@ defmodule Graft.Server do
                 case data.voted_for do
                     nil -> {:keep_state,
                             %Graft.State{data | voted_for: rpc.candidate_pid},
-                            [{:reply, from, %Graft.RequestVoteRPCReply{term: data.current_term, vote_granted: true}}]}
+                            [{:reply, from, %Graft.RequestVoteRPCReply{term: data.current_term, vote_granted: true}},
+                             {:next_event, :cast, :start}]}
                     _ -> {:keep_state_and_data, [{:reply, from, %Graft.RequestVoteRPCReply{term: data.current_term}}]}
                 end
-            _ ->{:keep_state_and_data, [{:reply, from, %Graft.RequestVoteRPCReply{term: data.current_term}},
-                                        {:next_event, :cast, :start}]}
+            _ -> {:keep_state_and_data, [{:reply, from, %Graft.RequestVoteRPCReply{term: data.current_term}}]}
         end
     end
 
     def candidate(:cast, :request_votes, data) do
         send_requests(data)
-        {:keep_state, %Graft.State{data | voted_for: data.me}}
+        {:keep_state}
     end
 
     def candidate(event_type, event_content, data) do
