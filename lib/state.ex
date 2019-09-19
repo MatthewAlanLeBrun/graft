@@ -10,5 +10,6 @@ defmodule Graft.State do
               next_index: [],       # for each server, index of the next log entry to send to that server
               match_index: [],      # for each server, index of highest log entry known to be replicated on server
               server_count: 0,      # number of servers in the cluster
-              servers: []           # pids of each server in the cluster
+              servers: [],          # names of each server in the cluster
+              votes: 0              # number of votes obtained
 end
