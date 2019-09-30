@@ -5,13 +5,6 @@ defmodule Graft.Server do
         GenStateMachine.start(__MODULE__, [me, servers], name: me)
     end
 
-    def init([:server1, servers]) do
-        {:ok, :follower, %Graft.State{me: :server1,
-                                      servers: servers,
-                                      server_count: length(servers),
-                                      time_out: 2000}}
-    end
-
     def init([me, servers]) do
         {:ok, :follower, %Graft.State{me: me,
                                       servers: servers,
@@ -24,6 +17,7 @@ defmodule Graft.Server do
     end
 
     def follower({:timeout, :election_timeout}, :begin_election, data) do
+        IO.puts("#{data.me} timed out as follower. Starting election.")
         {:next_state,
          :candidate,
          %Graft.State{data | state: :candidate, current_term: data.current_term+1,
@@ -58,13 +52,17 @@ defmodule Graft.Server do
     end
 
     def candidate(:cast, :request_votes, data) do
+        IO.puts("#{data.me} seding vote requests.")
         send_requests(data)
         {:keep_state_and_data, []}
     end
 
     def candidate(:cast, %Graft.RequestVoteRPCReply{vote_granted: true}, data) do
+        IO.puts("#{data.me} got vote number #{data.votes+1}.")
         case data.votes+1 > data.server_count/2 do
-            true -> {:next_state, :leader, %Graft.State{data | votes: data.votes+1, state: :leader},
+            true ->
+                IO.puts("#{data.me} got majority votes, becoming leader.")
+                {:next_state, :leader, %Graft.State{data | votes: data.votes+1, state: :leader},
                                           [{{:timeout, :heartbeat}, 0, :ok}]}
             false -> {:keep_state, %Graft.State{data | votes: data.votes+1}, []}
         end
@@ -82,11 +80,17 @@ defmodule Graft.Server do
     end
 
     def leader({:timeout, :heartbeat}, :ok, data) do
+        IO.puts("#{data.me} sending heartbeat.")
         send_append_entries(%Graft.AppendEntriesRPC{
             term: data.current_term,
             leader_name: data.me
         }, data.servers, data.me)
         {:keep_state_and_data, [{{:timeout, :heartbeat}, 4000, :ok}]}
+    end
+
+    def leader(:cast, %Graft.RequestVoteRPCReply{vote_granted: true}, data) do
+        IO.puts("#{data.me} got vote number #{data.votes+1}")
+        {:keep_state, %Graft.State{data | votes: data.votes+1}, []}
     end
 
     def leader(event_type, event_content, data) do
