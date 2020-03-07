@@ -1,6 +1,5 @@
 defmodule GraftTest do
-  use ExUnit.Case
-  doctest Graft
+  use ExUnit.Case, async: true
 
   test "greets the world" do
     assert Graft.hello() == :world
