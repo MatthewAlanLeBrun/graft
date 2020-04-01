@@ -31,24 +31,58 @@ defmodule Graft.Server do
 
     def follower(:cast, {:request_vote, rpc = %Graft.RequestVoteRPC{}}, data) do
         current_term = data.current_term
+        [{last_log_index, last_log_term, _entry} | _tail] = data.log
         case rpc.term do
-            term when term > current_term ->
-                case data.voted_for do
-                    nil ->
-                        GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: data.current_term, vote_granted: true})
-                        {:keep_state, %Graft.State{data | voted_for: rpc.candidate_pid}, [{:next_event, :cast, :start}]}
+            term when term < current_term ->
+                GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: data.current_term})
+                {:keep_state_and_data, []}
+            term ->
+                voted_for = case term do
+                    term when term == current_term -> data.voted_for
+                    term when term > current_term -> nil
+                end
+                case {voted_for, rpc.last_log_index, rpc.last_log_term} do
+                    {voted_for, c_last_log_index, c_last_log_term} when voted_for in [nil, rpc.candidate_pid]
+                                                                   and c_last_log_term >= last_log_term
+                                                                   and c_last_log_index >= last_log_index ->
+                        GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: term, vote_granted: true})
+                        {:keep_state, %Graft.State{data | voted_for: rpc.candidate_pid, current_term: term}, [{:next_event, :cast, :start}]}
+
                     _ ->
                         GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: data.current_term})
                         {:keep_state_and_data, []}
                 end
-            _ ->
-                GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: data.current_term})
-                {:keep_state_and_data, []}
         end
     end
 
-    def follower(:cast, %Graft.AppendEntriesRPC{entries: []}, data) do
-        {:keep_state_and_data, [{{:timeout, :election_timeout}, data.time_out, :begin_election}]}
+    def follower(:cast, rpc = %Graft.AppendEntriesRPC{entries: []}, data) do
+        {:keep_state, %Graft.State{data | leader: rpc.leader_name}, [{{:timeout, :election_timeout}, data.time_out, :begin_election}]}
+    end
+
+    def follower(:cast, rpc = %Graft.AppendEntriesRPC{}, data) do
+        current_term = data.current_term
+        case rpc.term do
+            term when term < current_term ->
+                GenStateMachine.cast(rpc.leader_name, %Graft.AppendEntriesRPCReply{term: data.current_term, success: false})
+                {:keep_state_and_data, []}
+            term ->
+                ordered_log = Enum.reverse data.log
+                rpc_prev_log_index = rpc.prev_log_index
+                rpc_prev_log_term = rpc.prev_log_term
+                case Enum.at(ordered_log, rpc_prev_log_index)  do
+                    {^rpc_prev_log_index, ^rpc_prev_log_term, _entry} ->
+                        # TODO: continues
+                    {^rpc_prev_log_index, different_term, _entry} ->
+                        # TODO: delete existing entry and all that follow
+                    _ ->
+                        GenStateMachine.cast(rpc.leader_name, %Graft.AppendEntriesRPCReply{term: data.current_term, success: false})
+                        {:keep_state_and_data, []}
+                end
+        end
+    end
+
+    def follower({:call, from}, {:entry, _operation, _key}, data) do
+        {:keep_state_and_data, [{:reply, from, {:error, {:redirect, data.leader}}}]}
     end
 
     def candidate(:cast, :request_votes, data) do
@@ -75,9 +109,40 @@ defmodule Graft.Server do
         end
     end
 
+    def candidate({:call, from}, {:entry, _operation, _key}, data) do
+        {:keep_state_and_data, [{:reply, from, {:error, {:redirect, data.leader}}}]}
+    end
+
+    def candidate(:cast, {:request_vote, rpc = %Graft.RequestVoteRPC{}}, data) do
+        current_term = data.current_term
+        [{last_log_index, last_log_term, _entry} | _tail] = data.log
+        case rpc.term do
+            term when term < current_term ->
+                GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: data.current_term})
+                {:keep_state_and_data, []}
+            term ->
+                voted_for = case term do
+                    term when term == current_term -> data.voted_for
+                    term when term > current_term -> nil
+                end
+                case {voted_for, rpc.last_log_index, rpc.last_log_term} do
+                    {voted_for, c_last_log_index, c_last_log_term} when voted_for in [nil, rpc.candidate_pid]
+                                                                   and c_last_log_term >= last_log_term
+                                                                   and c_last_log_index >= last_log_index ->
+                        GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: term, vote_granted: true})
+                        {:next_state, follower, %Graft.State{data | voted_for: rpc.candidate_pid, current_term: term}, [{:next_event, :cast, :start}]}
+
+                    _ ->
+                        GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: data.current_term})
+                        {:keep_state_and_data, []}
+                end
+        end
+    end
+
     def candidate(event_type, event_content, data) do
         handle_event(event_type, event_content, data)
     end
+
 
     def leader({:timeout, :heartbeat}, :ok, data) do
         IO.puts("#{data.me} sending heartbeat.")
@@ -91,6 +156,32 @@ defmodule Graft.Server do
     def leader(:cast, %Graft.RequestVoteRPCReply{vote_granted: true}, data) do
         IO.puts("#{data.me} got vote number #{data.votes+1}")
         {:keep_state, %Graft.State{data | votes: data.votes+1}, []}
+    end
+
+    def leader(:cast, {:request_vote, rpc = %Graft.RequestVoteRPC{}}, data) do
+        current_term = data.current_term
+        [{last_log_index, last_log_term, _entry} | _tail] = data.log
+        case rpc.term do
+            term when term < current_term ->
+                GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: data.current_term})
+                {:keep_state_and_data, []}
+            term ->
+                voted_for = case term do
+                    term when term == current_term -> data.voted_for
+                    term when term > current_term -> nil
+                end
+                case {voted_for, rpc.last_log_index, rpc.last_log_term} do
+                    {voted_for, c_last_log_index, c_last_log_term} when voted_for in [nil, rpc.candidate_pid]
+                                                                   and c_last_log_term >= last_log_term
+                                                                   and c_last_log_index >= last_log_index ->
+                        GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: term, vote_granted: true})
+                        {:next_state, follower, %Graft.State{data | voted_for: rpc.candidate_pid, current_term: term}, [{:next_event, :cast, :start}]}
+
+                    _ ->
+                        GenStateMachine.cast(rpc.candidate_pid, %Graft.RequestVoteRPCReply{term: data.current_term})
+                        {:keep_state_and_data, []}
+                end
+        end
     end
 
     def leader(event_type, event_content, data) do
@@ -130,5 +221,9 @@ defmodule Graft.Server do
                 _ -> GenStateMachine.cast(server, rpc)
             end
         end
+    end
+
+    def append_entries(log, entries) do
+
     end
 end
