@@ -12,4 +12,10 @@ defmodule Graft do
 
   def data(server), do: GenStateMachine.call(server, :data)
 
+  def all_data(servers) do
+      for server <- servers do
+          GenStateMachine.call(server, :data)
+      end
+  end
+
 end
