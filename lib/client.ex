@@ -7,7 +7,7 @@ defmodule Graft.Client do
     end
 
     def write(server, {key, value}) do
-        case GenStateMachine.call(server, {:entry, :write, {key, value}}}) do
+        case GenStateMachine.call(server, {:entry, :write, {key, value}}) do
             :ok -> :ok
             {:error, {:redirect, leader}} -> write(leader, {key, value})
         end

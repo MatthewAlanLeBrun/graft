@@ -11,6 +11,6 @@ defmodule Graft.State do
               match_index: [],      # for each server, index of highest log entry known to be replicated on server
               server_count: 0,      # number of servers in the cluster
               servers: [],          # names of each server in the cluster
-              votes: 0              # number of votes obtained
+              votes: 0,             # number of votes obtained
               leader: nil           # the id of the node believed to be the leader
 end
