@@ -91,7 +91,7 @@ defmodule Graft.Server do
     ### Append Entries Rules ###
     ### General Rules ###
 
-    def candidate({:call, from}, {:entry, _operation, _key}, data = %Graft.State{leader: leader}) do
+    def candidate({:call, from}, {:entry, _operation, _key}, %Graft.State{leader: leader}) do
         {:keep_state_and_data, [{:reply, from, {:error, {:redirect, leader}}}]}
     end
 
@@ -131,41 +131,41 @@ defmodule Graft.Server do
 
     ### Request Vote Rules ###
 
-    def handle_event(:cast, rpc = %Graft.RequestVoteRPC{term: term, candidate_name: candidate},
-                        data = %Graft.State{current_term: current_term})
-                        when term < current_term do
+    def handle_event(:cast, %Graft.RequestVoteRPC{term: term, candidate_name: candidate},
+                            %Graft.State{current_term: current_term})
+                            when term < current_term do
         reply :rv, candidate, current_term, false
         {:keep_state_and_data, []}
     end
 
-    def handle_event(:cast, rpc = %Graft.RequestVoteRPC{term: term, last_log_index: rpc_lli, last_log_term: rpc_llt, candidate_name: candidate},
+    def handle_event(:cast, %Graft.RequestVoteRPC{term: term, last_log_index: rpc_lli, last_log_term: rpc_llt, candidate_name: candidate},
                         data = %Graft.State{current_term: current_term, log: [{last_log_index, last_log_term, _entry} | _tail]})
                         when term > current_term and rpc_llt >= last_log_term and rpc_lli >= last_log_index do
         reply :rv, candidate, term, true
         {:next_state, :follower, %Graft.State{data | voted_for: candidate, current_term: term}, [{:next_event, :cast, :start}]}
     end
 
-    def handle_event(:cast, rpc = %Graft.RequestVoteRPC{term: term, last_log_index: rpc_lli, last_log_term: rpc_llt, candidate_name: candidate},
+    def handle_event(:cast, %Graft.RequestVoteRPC{term: term, last_log_index: rpc_lli, last_log_term: rpc_llt, candidate_name: candidate},
                         data = %Graft.State{voted_for: voted_for, log: [{last_log_index, last_log_term, _entry} | _tail]})
                         when rpc_llt >= last_log_term and rpc_lli >= last_log_index and voted_for in [nil, candidate] do
         reply :rv, candidate, term, true
         {:next_state, :follower, %Graft.State{data | voted_for: candidate, current_term: term}, [{:next_event, :cast, :start}]}
     end
 
-    def handle_event(:cast, rpc = %Graft.RequestVoteRPC{candidate_name: candidate}, data = %Graft.State{current_term: current_term}) do
+    def handle_event(:cast, %Graft.RequestVoteRPC{candidate_name: candidate}, %Graft.State{current_term: current_term}) do
         reply :rv, candidate, current_term, false
         {:keep_state_and_data, []}
     end
 
     ### Append Entries Rules ###
 
-    def handle_event(:cast, rpc = %Graft.AppendEntriesRPC{term: term, leader_name: leader},
-                            data = %Graft.State{current_term: current_term}) when term < current_term do
+    def handle_event(:cast, %Graft.AppendEntriesRPC{term: term, leader_name: leader},
+                            %Graft.State{current_term: current_term}) when term < current_term do
         reply :ae, leader, current_term, false
         {:keep_state_and_data, []}
     end
 
-    def handle_event(:cast, rpc = %Graft.AppendEntriesRPC{term: term, leader_name: leader, prev_log_index: rpc_pli, prev_log_term: rpc_plt, leader_commit: leader_commit, entries: entries},
+    def handle_event(:cast, %Graft.AppendEntriesRPC{term: term, leader_name: leader, prev_log_index: rpc_pli, prev_log_term: rpc_plt, leader_commit: leader_commit, entries: entries},
                             data = %Graft.State{current_term: current_term, log: log, commit_index: commit_index}) do
         resolve_ae = fn log ->
             new_log = [{last_new_index, _term, _entry} | _tail] = append_entries log, entries, term
@@ -187,11 +187,11 @@ defmodule Graft.Server do
                 |> resolve_ae.()
             _ -> # bad log
                 reply :ae, leader, current_term, false
-                {:keep_state_and_data, []}
+                {:keep_state_and_data, []} # TODO: can be made follower here and restart timer
         end
     end
 
-    def handle_event(:cast, rpc = %Graft.AppendEntriesRPC{leader_name: leader}, data = %Graft.State{current_term: current_term}) do
+    def handle_event(:cast, %Graft.AppendEntriesRPC{leader_name: leader}, %Graft.State{current_term: current_term}) do
         reply :ae, leader, current_term, false
         {:keep_state_and_data, []}
     end
