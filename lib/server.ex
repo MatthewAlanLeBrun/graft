@@ -109,6 +109,11 @@ defmodule Graft.Server do
         {:keep_state_and_data, []}
     end
 
+    ### Default ###
+
+    def follower(:cast, _event, _data), do: {:keep_state_and_data, []}
+    def follower({:call, from}, _event, _data), do: {:keep_state_and_data, [{:reply, from, {:error, :invalid_event}}]}
+
     ############################################################################
     #### CANDIDATE BEHAVIOUR ####
     ############################################################################
@@ -168,15 +173,14 @@ defmodule Graft.Server do
          [{{:timeout, :election_timeout}, generate_time_out(), :begin_election}, {:next_event, :cast, rpc}]}
     end
 
-    def candidate(:cast, _event, _data) do
-        {:keep_state_and_data, []}
-    end
+    ### Default ###
 
-    def candidate(event_type, event_content, data) do
-        handle_event(event_type, event_content, data)
-    end
+    def candidate(:cast, _event, _data), do: {:keep_state_and_data, []}
+    def candidate({:call, from}, _event, _data), do: {:keep_state_and_data, [{:reply, from, {:error, :invalid_event}}]}
 
+    ############################################################################
     #### LEADER BEHAVIOUR ####
+    ############################################################################
 
     ### General Rules ###
 
@@ -210,15 +214,14 @@ defmodule Graft.Server do
 
     ### Append Entries Rules ###
 
-    def leader(:cast, _event, _data) do
-        {:keep_state_and_data, []}
-    end
+    ### Default ###
 
-    def leader(event_type, event_content, data) do
-        handle_event(event_type, event_content, data)
-    end
+    def leader(:cast, _event, _data), do: {:keep_state_and_data, []}
+    def leader({:call, from}, _event, _data), do: {:keep_state_and_data, [{:reply, from, {:error, :invalid_event}}]}
 
+    ############################################################################
     #### GENERAL BEHAVIOUR ####
+    ############################################################################
 
     def handle_event(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
         when term > current_term
