@@ -1,7 +1,5 @@
 defmodule Graft.State do
-    defstruct time_out: 0,          # random time out of server
-              state: :follower,     # current state of the server
-              me: nil,              # name of the server process
+    defstruct me: nil,              # name of the server process
               current_term: 0,      # latest term server has seen
               voted_for: nil,       # candidate_pid that received vote in current term (or nil if none)
               log: [{0, 0, nil}],   # log entries; each entry contains command for state machine, and term when entry was received by leader
@@ -12,5 +10,6 @@ defmodule Graft.State do
               server_count: 0,      # number of servers in the cluster
               servers: [],          # names of each server in the cluster
               votes: 0,             # number of votes obtained
-              leader: nil           # the id of the node believed to be the leader
+              leader: nil,          # the id of the node believed to be the leader
+              client_data: %{}      # data structure being managed by client
 end
