@@ -35,6 +35,13 @@ defmodule Graft.Server do
         {:keep_state_and_data, [{:reply, from, {:error, {:redirect, data.leader}}}]}
     end
 
+    def follower(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index, client_data: client_data})
+        when commit_index > last_applied
+    do
+        client_data = apply last_applied+1, log, client_data
+        {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data}, [{:next_event, :cast, event}]}
+    end
+
     def follower(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
         when term > current_term
     do
@@ -129,6 +136,13 @@ defmodule Graft.Server do
         {:keep_state_and_data, [{:reply, from, {:error, {:redirect, leader}}}]}
     end
 
+    def candidate(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index, client_data: client_data})
+        when commit_index > last_applied
+    do
+        client_data = apply last_applied+1, log, client_data
+        {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data}, [{:next_event, :cast, event}]}
+    end
+
     def candidate(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
         when term > current_term
     do
@@ -184,6 +198,13 @@ defmodule Graft.Server do
 
     ### General Rules ###
 
+    def leader(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index, client_data: client_data})
+        when commit_index > last_applied
+    do
+        client_data = apply last_applied+1, log, client_data
+        {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data}, [{:next_event, :cast, event}]}
+    end
+
     def leader(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
         when term > current_term
     do
@@ -230,15 +251,9 @@ defmodule Graft.Server do
          [{{:timeout, :heartbeat}, :infinity, :send_heartbeat}, {{:timeout, :election_timeout}, generate_time_out(), :begin_election}, {:next_event, :cast, rpc}]}
     end
 
-    def handle_event({:call, from}, _event_content, data) do
-        {:keep_state_and_data, [{:reply, from, data}]}
-    end
-
-    def handle_event(_event_type, _event_content, _data) do
-        {:keep_state_and_data, []}
-    end
-
+    ############################################################################
     #### OTHER FUNCTIONS ####
+    ############################################################################
 
     def generate_time_out, do: :rand.uniform(500)*10+5000
 
@@ -255,5 +270,17 @@ defmodule Graft.Server do
         |> Enum.map(fn {entry, index} -> {index, term, entry} end)
         |> Enum.reverse
         |> Kernel.++(log)
+    end
+
+    def apply(apply_index, log, client_data) do
+        {^apply_index, _term, entry} = log
+            |> Enum.reverse
+            |> Enum.at(apply_index)
+        case entry do
+            {key, value} ->
+                Map.put client_data, key, value
+            key ->
+                Map.get client_data, key
+        end
     end
 end
