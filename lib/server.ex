@@ -105,9 +105,9 @@ defmodule Graft.Server do
                 |> Enum.reverse
                 |> resolve_ae.()
             _ -> # bad log
-                IO.inspect true, label: "Reply"
-                reply :ae, leader, current_term, false
-                {:keep_state_and_data, []} # TODO: can be made follower here and restart timer
+                IO.inspect false, label: "Reply"
+                GenStateMachine.cast leader, {%Graft.AppendEntriesRPCReply{term: current_term, success: false}, data.me}
+                {:keep_state_and_data, [{{:timeout, :election_timeout}, generate_time_out(), :begin_election}]}
         end
     end
 
@@ -175,7 +175,7 @@ defmodule Graft.Server do
         if votes+1 > server_count/2 do
             IO.puts "#{data.me} got majority votes, becoming leader."
             {:next_state, :leader, %Graft.State{data | votes: votes+1},
-             [{{:timeout, :election_timeout}, :infinity, :ok}, {{:timeout, :heartbeat}, 0, :send_heartbeat}]}
+             [{{:timeout, :election_timeout}, :infinity, :ok}, {:next_event, :cast, :init}]}
         else
             {:keep_state, %Graft.State{data | votes: votes+1}, []}
         end
@@ -212,20 +212,31 @@ defmodule Graft.Server do
         handle_event :cast, rpc, data
     end
 
-    def leader({:timeout, :heartbeat}, :send_heartbeat, data = %Graft.State{servers: servers, me: me, log: [{pli, plt, _entry} | _tail]}) do
-        IO.inspect me, label: "Sending heartbeat"
-        for server <- servers, server !== me do
-            GenStateMachine.cast(server, %Graft.AppendEntriesRPC{
-                term: data.current_term,
-                leader_name: me,
-                prev_log_index: pli,
-                prev_log_term: plt,
-                entries: [],
-                leader_commit: data.commit_index
-                })
+    def leader(:cast, :init, data = %Graft.State{log: [{prev_index, _, _} | _]}) do
+        ready = for server <- data.servers, into: %{} do
+            {server, true}
         end
-        {:keep_state_and_data, [{{:timeout, :heartbeat}, 3000, :send_heartbeat}]}
+        |> IO.inspect label: "Ready map"
+        next_index = for server <- data.servers, into: %{} do
+            {server, prev_index+1}
+        end
+        |> IO.inspect label: "next_index map"
+        events = for server <- data.servers, server !== data.me do
+            {{:timeout, {:heartbeat, server}}, 0, :send_heartbeat}
+        end
+        |> IO.inspect(label: "Events:")
+        {:keep_state, %Graft.State{data | ready: ready, next_index: next_index}, events}
     end
+
+    def leader({:timeout, {:heartbeat, server}}, :send_heartbeat, %Graft.State{me: me}) do
+        IO.inspect me, label: "Heartbeat timeout for #{server}, sending from"
+        {:keep_state_and_data, [{:next_event, :cast, {:send_append_entries, server}}]}
+    end
+
+    # def leader(:cast, {:apply, apply_index}, data) do
+    #     client_data = apply_entry apply_index, data.log, data.client_data
+    #
+    # end
 
     ### Request Vote Rules ###
 
@@ -235,24 +246,51 @@ defmodule Graft.Server do
     end
 
     ### Append Entries Rules ###
-
-    def leader(:call, {:entry, entry}, data = %Graft.State{client_data: client_data, log: log = [{prev_index, prev_term, _} | _]}) do
-        log = [{prev_index+1, data.term, entry} | log]
-        for server <- data.servers, server !== me do
-            GenStateMachine.cast(server, %Graft.AppendEntriesRPC{
-                term: data.current_term,
-                leader_name: data.me,
-                prev_log_index: prev_index,
-                prev_log_term: prev_term,
-                entries: [entry],
-                leader_commit: data.commit_index
-                })
+    # TODO: convert to a call to return the result
+    def leader(:cast, {:entry, entry}, data = %Graft.State{log: log = [{prev_index, _, _} | _]}) do
+        log = [{prev_index+1, data.current_term, entry} | log]
+        events = for server <- data.servers, server !== data.me, data.ready[server] === true do
+            {:next_event, :cast, {:send_append_entries, server}}
         end
-        {:keep_state, %Graft.State{data | log: log}, []}
+        {:keep_state, %Graft.State{data | log: log}, events}
     end
 
-    def leader(:call, {:entry, :write, {key, value}}, data) do
+    def leader(:cast, {%Graft.AppendEntriesRPCReply{success: true}, from},
+               data = %Graft.State{ready: ready, log: [{prev_index, _, _} | _]})
+    do
+        ready = %{ready | from => true}
+        next_index = %{data.next_index | from => data.next_index[from]+1}
+        events = if data.next_index[from] > prev_index do
+            []
+        else
+            [{:next_event, :cast, {:send_append_entries, from}}]
+        end
+        {:keep_state, %Graft.State{data | ready: ready, next_index: next_index}, events}
+    end
 
+    def leader(:cast, {%Graft.AppendEntriesRPCReply{success: false}, from}, data) do
+        next_index = %{data.next_index | from => data.next_index[from]-1}
+        {:keep_state, %Graft.State{data | next_index: next_index}, [{:next_event, :cast, {:send_append_entries, from}}]}
+    end
+
+    def leader(:cast, {:send_append_entries, to}, data = %Graft.State{ready: ready, log: log = [{prev_index, prev_term, _} | _]}) do
+        ready = %{ready | to => false}
+        entry = if (next = data.next_index[to]) > prev_index do
+            []
+        else
+            {^next, _, entry} = Enum.reverse(log)
+            |> Enum.at(next)
+            entry
+        end
+        GenStateMachine.cast(to, %Graft.AppendEntriesRPC{
+            term: data.current_term,
+            leader_name: data.me,
+            prev_log_index: prev_index,
+            prev_log_term: prev_term,
+            entries: entry,
+            leader_commit: data.commit_index
+        })
+        {:keep_state, %Graft.State{data | ready: ready}, [{{:timeout, {:heartbeat, to}}, 3000, :send_heartbeat}]}
     end
 
     ### Default ###
