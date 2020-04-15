@@ -11,7 +11,7 @@ defmodule Graft do
     def start5, do: start([:server1, :server2, :server3, :server4, :server5])
     def start3, do: start([:server1, :server2, :server3])
 
-    def data(server), do: GenStateMachine.cast(server, :data)
+    def data(server), do: GenStateMachine.call(server, :data)
 
     def all_data(servers) do
         for server <- servers do
