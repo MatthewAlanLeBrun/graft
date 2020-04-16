@@ -12,5 +12,6 @@ defmodule Graft.State do
               servers: [],          # names of each server in the cluster
               votes: 0,             # number of votes obtained
               leader: nil,          # the id of the node believed to be the leader
-              client_data: %{}      # data structure being managed by client
+              client_data: %{},     # data structure being managed by client
+              requests: %{}         # for each request, the address of the client who requested it
 end

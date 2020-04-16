@@ -1,8 +1,9 @@
 defmodule Graft.Server do
     use GenStateMachine, callback_mode: :state_functions
 
-    def start(me, servers) do
-        GenStateMachine.start(__MODULE__, [me, servers], name: me)
+    def start_link(me, servers) do
+        IO.inspect me, label: "Starting server"  
+        GenStateMachine.start_link(__MODULE__, [me, servers], name: me)
     end
 
     def init([me, servers]) do
@@ -38,7 +39,7 @@ defmodule Graft.Server do
     def follower(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index})
         when commit_index > last_applied
     do
-        client_data = apply_entry last_applied+1, data.log, data.client_data
+        {client_data, _} = apply_entry last_applied+1, data.log, data.client_data
         {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data}, [{:next_event, :cast, event}]}
     end
 
@@ -134,7 +135,7 @@ defmodule Graft.Server do
     def candidate(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index})
         when commit_index > last_applied
     do
-        client_data = apply_entry last_applied+1, data.log, data.client_data
+        {client_data, _} = apply_entry last_applied+1, data.log, data.client_data
         {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data}, [{:next_event, :cast, event}]}
     end
 
@@ -197,9 +198,9 @@ defmodule Graft.Server do
     def leader(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index})
         when commit_index > last_applied
     do
-        client_data = apply_entry last_applied+1, data.log, data.client_data
-        # TODO: need to reply to client
-        {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data}, [{:next_event, :cast, event}]}
+        {client_data, response} = apply_entry last_applied+1, data.log, data.client_data
+        {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data},
+         [{:reply, data.requests[last_applied+1], {:ok, response}}, {:next_event, :cast, event}]}
     end
 
     def leader(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
@@ -229,11 +230,6 @@ defmodule Graft.Server do
         {:keep_state_and_data, [{:next_event, :cast, {:send_append_entries, server}}]}
     end
 
-    # def leader(:cast, {:apply, apply_index}, data) do
-    #     client_data = apply_entry apply_index, data.log, data.client_data
-    #
-    # end
-
     ### Request Vote Rules ###
 
     def leader(:cast, %Graft.RequestVoteRPCReply{vote_granted: true}, data) do
@@ -242,14 +238,14 @@ defmodule Graft.Server do
     end
 
     ### Append Entries Rules ###
-    # TODO: convert to a call to return the result
-    def leader(:cast, {:entry, entry}, data = %Graft.State{log: log = [{prev_index, _, _} | _]}) do
+    def leader({:call, from}, {:entry, entry}, data = %Graft.State{log: log = [{prev_index, _, _} | _]}) do
         IO.inspect entry, label: "Request received from client. Idx: #{prev_index+1}, entry"
+        requests = Map.put data.requests, prev_index+1, from
         log = [{prev_index+1, data.current_term, entry} | log]
         events = for server <- data.servers, server !== data.me, data.ready[server] === true do
             {:next_event, :cast, {:send_append_entries, server}}
         end
-        {:keep_state, %Graft.State{data | log: log}, events}
+        {:keep_state, %Graft.State{data | log: log, requests: requests}, events}
     end
 
     def leader(:cast, {rpc = %Graft.AppendEntriesRPCReply{success: true, last_log_index: lli}, from}, data)
@@ -362,9 +358,9 @@ defmodule Graft.Server do
             |> Enum.at(apply_index)
         case entry do
             {key, value} ->
-                Map.put client_data, key, value
+                {Map.put(client_data, key, value), :ok}
             key ->
-                Map.get client_data, key
+                {client_data, Map.get(client_data, key)}
         end
     end
 end
