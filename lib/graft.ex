@@ -3,15 +3,12 @@ defmodule Graft do
     Documentation for Graft.
     """
 
-    def start(servers) do
-        {:ok, supervisor_pid} = Graft.Supervisor.start_link servers
-        for server <- servers, do: Supervisor.start_child supervisor_pid, [server, servers]
+    def start(servers, machine_module, machine_args \\ []) do
+        {:ok, supervisor_pid} = Graft.Supervisor.start_link servers, machine_module, machine_args
+        for server <- servers, do: Supervisor.start_child supervisor_pid, [server, servers, machine_module, machine_args]
         for server <- servers, do: GenStateMachine.cast server, :start
-        supervisor_pid
+        {:ok, supervisor_pid}
     end
-
-    def start5, do: start([:server1, :server2, :server3, :server4, :server5])
-    def start3, do: start([:server1, :server2, :server3])
 
     def data(server), do: GenStateMachine.call(server, :data)
 

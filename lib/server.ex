@@ -1,15 +1,18 @@
 defmodule Graft.Server do
     use GenStateMachine, callback_mode: :state_functions
 
-    def start_link(me, servers) do
-        IO.inspect me, label: "Starting server"  
-        GenStateMachine.start_link(__MODULE__, [me, servers], name: me)
+    def start_link(me, servers, machine_module, machine_args) do
+        IO.inspect me, label: "Starting server"
+        GenStateMachine.start_link(__MODULE__, [me, servers, machine_module, machine_args], name: me)
     end
 
-    def init([me, servers]) do
+    def init([me, servers, machine_module, machine_args]) do
+        {:ok, machine} = Graft.Machine.register machine_module, machine_args
+        IO.puts("registered machine")
         {:ok, :follower, %Graft.State{me: me,
                                       servers: servers,
-                                      server_count: length(servers)}}
+                                      server_count: length(servers),
+                                      machine: machine}}
     end
 
     ############################################################################
@@ -39,8 +42,8 @@ defmodule Graft.Server do
     def follower(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index})
         when commit_index > last_applied
     do
-        {client_data, _} = apply_entry last_applied+1, data.log, data.client_data
-        {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data}, [{:next_event, :cast, event}]}
+        apply_entry last_applied+1, data.log, data.machine
+        {:keep_state, %Graft.State{data | last_applied: last_applied+1}, [{:next_event, :cast, event}]}
     end
 
     def follower(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
@@ -135,8 +138,8 @@ defmodule Graft.Server do
     def candidate(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index})
         when commit_index > last_applied
     do
-        {client_data, _} = apply_entry last_applied+1, data.log, data.client_data
-        {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data}, [{:next_event, :cast, event}]}
+        apply_entry last_applied+1, data.log, data.machine
+        {:keep_state, %Graft.State{data | last_applied: last_applied+1}, [{:next_event, :cast, event}]}
     end
 
     def candidate(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
@@ -198,8 +201,8 @@ defmodule Graft.Server do
     def leader(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index})
         when commit_index > last_applied
     do
-        {client_data, response} = apply_entry last_applied+1, data.log, data.client_data
-        {:keep_state, %Graft.State{data | last_applied: last_applied+1, client_data: client_data},
+        response = apply_entry last_applied+1, data.log, data.machine
+        {:keep_state, %Graft.State{data | last_applied: last_applied+1},
          [{:reply, data.requests[last_applied+1], {:ok, response}}, {:next_event, :cast, event}]}
     end
 
@@ -278,8 +281,7 @@ defmodule Graft.Server do
         {:keep_state, %Graft.State{data | ready: ready, next_index: next_index, commit_index: commit_index, match_index: match_index}, events}
     end
 
-    def leader(:cast, {rpc = %Graft.AppendEntriesRPCReply{success: false}, from}, data) do
-        IO.puts "#{data.me} received AE RPC reply from #{from}. RPC: #{rpc}."
+    def leader(:cast, {%Graft.AppendEntriesRPCReply{success: false}, from}, data) do
         next_index = %{data.next_index | from => data.next_index[from]-1}
         {:keep_state, %Graft.State{data | next_index: next_index}, [{:next_event, :cast, {:send_append_entries, from}}]}
     end
@@ -352,15 +354,10 @@ defmodule Graft.Server do
         |> Kernel.++(log)
     end
 
-    def apply_entry(apply_index, log, client_data) do
+    def apply_entry(apply_index, log, machine) do
         {^apply_index, _term, entry} = log
             |> Enum.reverse
             |> Enum.at(apply_index)
-        case entry do
-            {key, value} ->
-                {Map.put(client_data, key, value), :ok}
-            key ->
-                {client_data, Map.get(client_data, key)}
-        end
+        Graft.Machine.apply_entry machine, entry
     end
 end
