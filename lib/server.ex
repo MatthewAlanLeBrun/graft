@@ -35,10 +35,6 @@ defmodule Graft.Server do
         {:keep_state_and_data, []}
     end
 
-    def follower({:call, from}, {:entry, _operation, _key}, data) do
-        {:keep_state_and_data, [{:reply, from, {:error, {:redirect, data.leader}}}]}
-    end
-
     def follower(:cast, event, data = %Graft.State{last_applied: last_applied, commit_index: commit_index})
         when commit_index > last_applied
     do
@@ -117,6 +113,9 @@ defmodule Graft.Server do
     ### Default ###
 
     def follower(:cast, _event, _data), do: {:keep_state_and_data, []}
+    def follower({:call, from}, {:entry, _entry}, data) do
+        {:keep_state_and_data, [{:reply, from, {:error, {:redirect, data.leader}}}]}
+    end
     def follower({:call, from}, :data, data), do: {:keep_state_and_data, [{:reply, from, data}]}
     def follower({:call, from}, _event, _data), do: {:keep_state_and_data, [{:reply, from, {:error, :invalid_event}}]}
 
@@ -131,7 +130,7 @@ defmodule Graft.Server do
         {:keep_state_and_data, [{:next_event, :cast, :request_votes}]}
     end
 
-    def candidate({:call, from}, {:entry, _operation, _key}, %Graft.State{leader: leader}) do
+    def candidate({:call, from}, {:entry, _entry}, %Graft.State{leader: leader}) do
         {:keep_state_and_data, [{:reply, from, {:error, {:redirect, leader}}}]}
     end
 
