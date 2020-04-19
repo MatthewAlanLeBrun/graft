@@ -100,8 +100,8 @@ defmodule Graft.Server do
             {^rpc_pli, ^rpc_plt, _entry} -> # matching
                 resolve_ae.(log)
             {^rpc_pli, term, _entry} when term !== rpc_plt -> # conflicting
-                Enum.split(ordered_log, rpc_pli)
-                |> Enum.reverse
+                {_bad, new_log} = Enum.split(ordered_log, rpc_pli)
+                Enum.reverse new_log
                 |> resolve_ae.()
             _ -> # bad log
                 IO.puts "#{data.me} received AE RPC from #{leader}. AE was NOT successful."
@@ -220,7 +220,7 @@ defmodule Graft.Server do
         end
         next_index = for server <- data.servers, into: %{} do
             {server, prev_index+1}
-        end |> IO.inspect(label: "next_index init")
+        end
         events = for server <- data.servers, server !== data.me do
             {{:timeout, {:heartbeat, server}}, 0, :send_heartbeat}
         end
@@ -250,18 +250,19 @@ defmodule Graft.Server do
         {:keep_state, %Graft.State{data | log: log, requests: requests}, events}
     end
 
-    def leader(:cast, {rpc = %Graft.AppendEntriesRPCReply{success: true, last_log_index: lli}, from}, data)
+    def leader(:cast, {%Graft.AppendEntriesRPCReply{success: true, last_log_index: lli}, from}, data)
         when lli === -1
     do
-        IO.inspect rpc, label: "#{data.me} received AE RPC reply from #{from}. RPC"
+        # IO.inspect rpc, label: "#{data.me} received AE RPC reply from #{from}. RPC"
         ready = %{data.ready | from => true}
         {:keep_state, %Graft.State{data | ready: ready}, []}
     end
 
-    def leader(:cast, {rpc = %Graft.AppendEntriesRPCReply{success: true, last_log_index: lli, last_log_term: llt}, from},
+    def leader(:cast, {%Graft.AppendEntriesRPCReply{success: true, last_log_index: lli, last_log_term: llt}, from},
                data = %Graft.State{ready: ready, match_index: match_index, log: [{prev_index, _, _} | _]})
     do
-        IO.inspect rpc, label: "#{data.me} received AE RPC reply from #{from}. RPC: "
+        IO.puts "Received successful reply from #{from}."
+        # IO.inspect rpc, label: "#{data.me} received AE RPC reply from #{from}. RPC: "
         match_index = %{match_index | from => lli}
         ready = %{ready | from => true}
         next_index = %{data.next_index | from => data.next_index[from]+1}
@@ -281,24 +282,24 @@ defmodule Graft.Server do
     end
 
     def leader(:cast, {%Graft.AppendEntriesRPCReply{success: false}, from}, data) do
+        IO.puts "Received UN-successful reply from #{from}."
         next_index = %{data.next_index | from => data.next_index[from]-1}
         {:keep_state, %Graft.State{data | next_index: next_index}, [{:next_event, :cast, {:send_append_entries, from}}]}
     end
 
-    def leader(:cast, {:send_append_entries, to}, data = %Graft.State{ready: ready, log: log}) do
-        {last_index, prev_index, prev_term} = case log do
-            [{last_index, _, _}, {prev_index, prev_term, _} | _] -> {last_index, prev_index, prev_term}
-            [{0, 0, nil}] -> {0, 0, 0}
-        end
+    def leader(:cast, {:send_append_entries, to}, data = %Graft.State{ready: ready, log: log = [{last_index, _, _} | _tail]}) do
         ready = %{ready | to => false}
-        IO.inspect(data.next_index[to], label: "next_index")
-        IO.inspect(last_index, label: "last_index")
         entry = if (next = data.next_index[to]) > last_index do
             []
         else
             {^next, _, entry} = Enum.reverse(log) |> Enum.at(next)
             [entry]
         end
+        {prev_index, prev_term, _prev_enrty} = case log do
+            [{0, 0, nil}] -> {0, 0, nil}
+            _ -> Enum.reverse(log) |> Enum.at(next-1)
+        end
+        IO.inspect entry, label: "Sending AE to #{to}, idx: #{next}, entry"
         rpc = %Graft.AppendEntriesRPC{
             term: data.current_term,
             leader_name: data.me,
@@ -307,7 +308,7 @@ defmodule Graft.Server do
             entries: entry,
             leader_commit: data.commit_index
         }
-        |> IO.inspect(label: "Sending AE RPC to #{to}, from #{data.me}. RPC")
+        # |> IO.inspect(label: "Sending AE RPC to #{to}, from #{data.me}. RPC")
         GenStateMachine.cast(to, rpc)
         {:keep_state, %Graft.State{data | ready: ready}, [{{:timeout, {:heartbeat, to}}, 3000, :send_heartbeat}]}
     end
@@ -315,6 +316,7 @@ defmodule Graft.Server do
     ### Default ###
 
     def leader(:cast, _event, _data), do: {:keep_state_and_data, []}
+    def leader({:call, from}, :data, data), do: {:keep_state_and_data, [{:reply, from, data}]}
     def leader({:call, from}, _event, _data), do: {:keep_state_and_data, [{:reply, from, {:error, :invalid_event}}]}
 
     ############################################################################
