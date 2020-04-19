@@ -6,6 +6,11 @@ defmodule Graft.Server do
         GenStateMachine.start_link(__MODULE__, [me, servers, machine_module, machine_args], name: me)
     end
 
+    def start_link(me, servers, state, machine_module, machine_args) do
+        IO.inspect me, label: "Starting server"
+        GenStateMachine.start_link(__MODULE__, [me, servers, state, machine_module, machine_args], name: me)
+    end
+
     def init([me, servers, machine_module, machine_args]) do
         {:ok, machine} = Graft.Machine.register machine_module, machine_args
         IO.puts("registered machine")
@@ -13,6 +18,12 @@ defmodule Graft.Server do
                                       servers: servers,
                                       server_count: length(servers),
                                       machine: machine}}
+    end
+
+    def init([me, servers, {state, data}, machine_module, machine_args]) do
+        {:ok, machine} = Graft.Machine.register machine_module, machine_args
+        IO.puts("registered machine")
+        {:ok, state, data}
     end
 
     ############################################################################
