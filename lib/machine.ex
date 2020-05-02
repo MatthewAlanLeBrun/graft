@@ -1,7 +1,7 @@
 defmodule Graft.Machine do
     @moduledoc """
     A behaviour module for implementing a replicated machine for the raft consensus
-    algorithm. Look at the `Graft` module docs for examples on how to create such 
+    algorithm. Look at the `Graft` module docs for examples on how to create such
     machines.
     """
 
@@ -57,7 +57,7 @@ defmodule Graft.Machine do
     @doc false
     @impl GenServer
     def handle_call({:apply, entry}, _from, {module, state}) do
-        {state, reply} = module.apply_entry state, entry
+        {reply, state} = module.handle_entry state, entry
         {:reply, reply, {module, state}}
     end
 
