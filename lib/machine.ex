@@ -1,60 +1,73 @@
 defmodule Graft.Machine do
+    @moduledoc """
+    A behaviour module for implementing a replicated machine for the raft consensus
+    algorithm. Look at the `Graft` module docs for examples on how to create such 
+    machines.
+    """
+
     use GenServer
 
-    @callback init(args :: list(any)) :: {:ok, any}
-    @callback apply_entry(state :: any, entry :: any) :: {any, any}
+    @typedoc """
+    The state/data of the replicated machine (similar to the 'state' of GenServer).
+    """
+    @type state :: any
+
+    @typedoc """
+    The entry request sent by the client.
+    """
+    @type entry :: any
+
+    @typedoc """
+    The reply to be sent back to the client.
+    """
+    @type response :: any
+
+    @doc """
+    Invoked when the server starts and links to the machine.
+
+    `args` is a list accepted arguments. Look at `Graft.start` to see how to pass
+    in these optional arguments.
+
+    Returning `{:ok, state}`, will initialise the state of the machine to `state`.
+    """
+    @callback init(args :: list(any)) :: {:ok, state}
+
+    @doc """
+    Invoked when a server in the raft cluster is commiting an entry to its log.
+    Should apply the entry to the replicated machine.
+
+    Should return a tuple of the response for the server along with the new state of the
+    replicated machine.
+    """
+    @callback handle_entry(entry, state) :: {response, state}
 
     defmacro __using__(_opts) do
-        quote do
+        quote location: :keep do
             @behaviour Graft.Machine
-
-            def init(_args) do
-                raise "function init/1 required by Graft.Machine"
-            end
-
-            def apply_entry(_state, _entry) do
-                raise "function apply_entry/2 required by Graft.Machine"
-            end
-
-            defoverridable [init: 1, apply_entry: 2]
         end
     end
 
+    @doc false
     @impl GenServer
     def init([module, args]) do
-        {:ok, state} = module.init(args)
+        {:ok, state} = module.init args
         {:ok, {module, state}}
     end
 
+    @doc false
     @impl GenServer
     def handle_call({:apply, entry}, _from, {module, state}) do
-        {state, reply} = module.apply_entry(state, entry)
+        {state, reply} = module.apply_entry state, entry
         {:reply, reply, {module, state}}
     end
 
+    @doc false
     def register(module, machine_args \\ []) do
-        GenServer.start_link(__MODULE__, [module, machine_args])
+        GenServer.start_link __MODULE__, [module, machine_args]
     end
 
+    @doc false
     def apply_entry(machine, entry) do
         GenServer.call machine, {:apply, entry}
-    end
-end
-
-defmodule MyMapMachine do
-    use Graft.Machine
-
-    @impl Graft.Machine
-    def init([]) do
-        {:ok, %{}}
-    end
-
-    @impl Graft.Machine
-    def apply_entry(state, {key, value}) do
-        {Map.put(state, key, value), :ok}
-    end
-
-    def apply_entry(state, key) do
-        {state, Map.get(state, key)}
     end
 end
