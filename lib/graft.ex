@@ -53,21 +53,21 @@ defmodule Graft do
     `Graft.start` returns the supervisor pid from which we can terminate or restart
     the servers.
 
-    We can now use `Graft.Client.request` to make requests to our consensus cluster.
+    We can now use `Graft.request` to make requests to our consensus cluster.
     As long as we know at least one server, we can send requests, since the `Graft.Client`
     module will forward the request if the server we choose is not the current leader.
 
     ```
-    Graft.Client.request :server1, :pop
+    Graft.request :server1, :pop
     #=> :noop
 
-    Graft.Client.request :server1, {:put, :foo}
+    Graft.request :server1, {:put, :foo}
     #=> :ok
 
-    Graft.Client.request :server1, :pop
+    Graft.request :server1, :pop
     #=> :foo
 
-    Graft.Client.request :server1, :bar
+    Graft.request :server1, :bar
     #=> :invalid_request
     ```
 
@@ -95,4 +95,13 @@ defmodule Graft do
     Print out the internal state of the `server`.
     """
     def data(server), do: GenStateMachine.call(server, :data)
+
+    @doc """
+    Make a new client request to a server within the consensus cluster.
+
+    `server` - name of the server the request should be sent to.
+    'entry' - processed and applied by the replicated state machine.
+    """
+    @spec request(atom(), any()) :: response :: any()
+    def request(server, entry), do: Graft.Client.request server, entry
 end
