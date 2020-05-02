@@ -57,7 +57,7 @@ defmodule Graft.Machine do
     @doc false
     @impl GenServer
     def handle_call({:apply, entry}, _from, {module, state}) do
-        {reply, state} = module.handle_entry state, entry
+        {reply, state} = module.handle_entry entry, state
         {:reply, reply, {module, state}}
     end
 
