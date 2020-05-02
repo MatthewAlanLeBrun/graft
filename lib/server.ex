@@ -1,4 +1,5 @@
 defmodule Graft.Server do
+    @moduledoc false
     use GenStateMachine, callback_mode: :state_functions
 
     def start_link(me, servers, machine_module, machine_args) do

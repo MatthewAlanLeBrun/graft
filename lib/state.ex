@@ -1,4 +1,5 @@
 defmodule Graft.State do
+    @moduledoc false
     defstruct me: nil,              # name of the server process
               current_term: 0,      # latest term server has seen
               voted_for: nil,       # candidate_pid that received vote in current term (or nil if none)

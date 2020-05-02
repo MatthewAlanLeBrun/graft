@@ -1,4 +1,5 @@
 defmodule Graft.Client do
+    @moduledoc false
     def request(server, entry) do
         case GenStateMachine.call(server, {:entry, entry}) do
             {:ok, response} -> response
