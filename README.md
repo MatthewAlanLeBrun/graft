@@ -8,7 +8,7 @@ To install the package, add it to your dependency list in `mix.exs`.
 
 ```elixir
 def deps do
-    [{:graft, "~> 0.1.0"}]
+    [{:graft, "~> 0.1.1"}]
 end
 ```
 
