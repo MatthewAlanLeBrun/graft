@@ -11,6 +11,7 @@ def deps do
     [{:graft, "~> 0.1.1"}]
 end
 ```
+If you are new to Elixir/mix, check out the [official Elixir webpage](https://elixir-lang.org/) for instructions on how to install Elixir. It is also a great place to start for newcomers to the language. You may also want to check out the [Introduction to mix](https://elixir-lang.org/getting-started/mix-otp/introduction-to-mix.html) and [dependencies](https://elixir-lang.org/getting-started/mix-otp/dependencies-and-umbrella-projects.html) guides for more information on how importing external projects works in Elixir.
 
 ## Documentation
-Find the full documentation as well as examples here.
+Find the full documentation as well as examples [here](https://hexdocs.pm/graft/Graft.html).
