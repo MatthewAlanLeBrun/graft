@@ -3,8 +3,9 @@ defmodule Graft.Supervisor do
     use Supervisor
 
     def start_link(servers, machine_module, machine_args) do
-        Supervisor.start_link(__MODULE__, [servers, machine_module, machine_args])
+        Supervisor.start_link(__MODULE__, [servers, machine_module, machine_args], name: __MODULE__)
     end
+    
     def start_link(servers, states, machine_module, machine_args) do
         Supervisor.start_link(__MODULE__, [servers, states, machine_module, machine_args])
     end
