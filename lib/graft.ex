@@ -74,6 +74,11 @@ defmodule Graft do
     That completes the distributed stack.
     """
 
+    use Application
+
+    def start(_type, _args), do: Rafute.Supervisor.start_link
+
+
     @doc """
     Starts the raft cluster.
 
