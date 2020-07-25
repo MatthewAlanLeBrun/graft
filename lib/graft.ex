@@ -76,8 +76,8 @@ defmodule Graft do
 
     use Application
 
-    def start(_type, _args), do: Rafute.Supervisor.start_link
-
+    def start(), do: for server <- Application.fetch_env!(:graft, :cluster), do: GenStateMachine.cast server, :start
+    def start(_type, _args), do: Graft.Supervisor.start_link
 
     @doc """
     Starts the raft cluster.
