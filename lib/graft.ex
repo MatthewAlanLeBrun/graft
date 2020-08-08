@@ -74,6 +74,11 @@ defmodule Graft do
     That completes the distributed stack.
     """
 
+    use Application
+
+    def start(), do: for server <- Application.fetch_env!(:graft, :cluster), do: GenStateMachine.cast server, :start
+    def start(_type, _args), do: Graft.Supervisor.start_link
+
     @doc """
     Starts the raft cluster.
 
