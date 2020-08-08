@@ -1,5 +1,6 @@
 defmodule Graft.Supervisor do
     @moduledoc false
+    require Logger
     use Supervisor
 
     def start_link() do
@@ -15,7 +16,7 @@ defmodule Graft.Supervisor do
     # end
 
     def init([{my_servers, all_servers}, machine_module, machine_args]) do
-        IO.inspect my_servers, label: "This node's servers"
+        Logger.info "This is node #{node()}, servers on this node are #{inspect(my_servers)}"
         children = for {name, _node} <- my_servers do
             worker(Graft.Server, [name, all_servers, machine_module, machine_args], restart: :transient, id: name)
         end
