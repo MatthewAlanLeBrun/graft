@@ -6,6 +6,7 @@ defmodule Graft.MixProject do
       app: :graft,
       version: "0.1.0",
       elixir: "~> 1.9",
+      elixirc_paths: ["lib", "machines"],
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
