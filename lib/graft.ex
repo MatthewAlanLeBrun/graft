@@ -77,7 +77,17 @@ defmodule Graft do
     use Application
 
     def start(), do: for server <- Application.fetch_env!(:graft, :cluster), do: GenStateMachine.cast server, :start
-    def start(_type, _args), do: Graft.Supervisor.start_link
+    def start(_type, _args) do
+        {mon, sup} = case Application.fetch_env!(:graft, :monitor) do
+            :off -> sup = Graft.Supervisor.start_link
+            {:off, sup}
+            [module: m, function: f, args: a, hml: hml] ->
+                {mon, sup} = :async_mon.start {m,f,a}, hml, merged: false
+                Process.register(mon, :monitor)
+                {mon, sup}
+        end |> Inspecter.my_inspect("Monitor and Supervisor")
+        sup
+    end
 
     @doc """
     Starts the raft cluster.
@@ -88,13 +98,13 @@ defmodule Graft do
 
     Returns `{:ok, pid}` where `pid` is the supervisor pid which can be used to supervise the cluster's servers.
     """
-    @spec start(list(atom), module(), list(any)) :: {:ok, pid()}
-    def start(servers, machine_module, machine_args \\ []) do
-        {:ok, supervisor_pid} = Graft.Supervisor.start_link servers, machine_module, machine_args
-        for server <- servers, do: Supervisor.start_child supervisor_pid, [server, servers, machine_module, machine_args]
-        for server <- servers, do: GenStateMachine.cast server, :start
-        {:ok, supervisor_pid}
-    end
+    # @spec start(list(atom), module(), list(any)) :: {:ok, pid()}
+    # def start(servers, machine_module, machine_args \\ []) do
+    #     {:ok, supervisor_pid} = Graft.Supervisor.start_link servers, machine_module, machine_args
+    #     for server <- servers, do: Supervisor.start_child supervisor_pid, [server, servers, machine_module, machine_args]
+    #     for server <- servers, do: GenStateMachine.cast server, :start
+    #     {:ok, supervisor_pid}
+    # end
 
     @doc """
     Print out the internal state of the `server`.
