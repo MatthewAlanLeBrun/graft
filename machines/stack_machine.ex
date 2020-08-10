@@ -7,7 +7,7 @@ defmodule MyStackMachine do
     end
 
     @impl Graft.Machine
-    def handle_entry({:put, value}, state) do
+    def handle_entry({:push, value}, state) do
         {:ok, [value | state]}
     end
 
