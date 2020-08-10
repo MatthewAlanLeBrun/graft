@@ -120,7 +120,7 @@ defmodule Graft.Server do
                 Enum.reverse new_log
                 |> resolve_ae.()
             _ -> # bad log
-                Logger.debug "#{data.me} did NOT append entry because of bad log. Replying to #{leader} with success: false."
+                Logger.debug "#{data.me} did NOT append entry because of bad log. Replying to #{inspect(leader)} with success: false."
                 GenStateMachine.cast leader, {%Graft.AppendEntriesRPCReply{term: current_term, success: false}, data.me}
                 {:keep_state_and_data, [{{:timeout, :election_timeout}, generate_time_out(), :begin_election}]}
         end
