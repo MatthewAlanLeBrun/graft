@@ -16,6 +16,7 @@ defmodule Graft.Supervisor do
     # end
 
     def init([{my_servers, all_servers}, machine_module, machine_args]) do
+        Inspecter.my_inspect self(), "Supervisor PID"
         Logger.info "This is node #{node()}, servers on this node are #{inspect(my_servers)}"
         children = for {name, _node} <- my_servers do
             worker(Graft.Server, [name, all_servers, machine_module, machine_args], restart: :transient, id: name)
