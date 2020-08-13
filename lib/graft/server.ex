@@ -229,6 +229,7 @@ defmodule Graft.Server do
 
     def leader(:cast, :init, data = %Graft.State{log: [{prev_index, _, _} | _]}) do
         Logger.info "New leader: #{data.me}."
+        Monitor.trace {:promoted, data.me, data.current_term}
         match_index = for {name, _} <- data.servers, into: %{} do
             {name, 0}
         end
