@@ -1,0 +1,27 @@
+with
+    proc_lib:init_p('Elixir.Graft.Supervisor',_,_,_,[_,_,_,{local, _ServerID},'Elixir.Graft.Server',_,_])
+monitor
+    and([_Supervisor <- _Node, proc_lib:init_p('Elixir.Graft.Supervisor',_,_,_,[_,_,_,{local, _ServerID},'Elixir.Graft.Server',_,_])]
+        and([_Node -> _Machine, proc_lib:init_p(_ServerID,_,_,_,[_,_,_,'Elixir.Graft.Machine',_,_])]
+            and([_Node <- _Machine, proc_lib:init_p(_ServerID,_,_,_,[_,_,_,'Elixir.Graft.Machine',_,_])]
+                and([_Node ? {ack, _, {ok, _}}]
+                    and([_Node ? {_, start}]
+                        and(
+                            [_Node ? {timeout, _, {timeout, election_timeout}}] max(X.
+                                and(
+                                    [_Node ? _]X,
+                                    [_Node ! _]X
+                                )
+                            ),
+                            [_Node ? {'$gen_cast', _}] max(Y. %%% Match with RequestVoteRPC
+                                and(
+                                    [_Node ? _]Y,
+                                    [_Node ! _]Y
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    ).
