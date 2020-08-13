@@ -126,6 +126,10 @@ defmodule Graft.Server do
         end
     end
 
+    def follower(:cast, :force_promotion, data) do
+        {:next_state, :leader, data, [{{:timeout, :election_timeout}, :infinity, :ok}, {:next_event, :cast, :init}]}
+    end
+
     ### Default ###
 
     def follower(:cast, _event, _data), do: {:keep_state_and_data, []}
