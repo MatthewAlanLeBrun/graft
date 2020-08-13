@@ -21,6 +21,7 @@ defmodule Graft.Supervisor do
         children = for {name, _node} <- my_servers do
             worker(Graft.Server, [name, all_servers, machine_module, machine_args], restart: :transient, id: name)
         end
+        children = children ++ [worker(Monitor, [], id: Monitor)]
         supervise(children, strategy: :one_for_one)
     end
 
