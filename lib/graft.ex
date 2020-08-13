@@ -79,15 +79,16 @@ defmodule Graft do
     def start(), do: for server <- Application.fetch_env!(:graft, :cluster), do: GenStateMachine.cast server, :start
     def start(_type, _args) do
         {mon, sup} = case Application.fetch_env!(:graft, :monitor) do
-            :off -> sup = Graft.Supervisor.start_link
-            {:off, sup}
             [module: m, function: f, args: a, hml: hml] ->
-                {mon, sup} = :async_mon.start {m,f,a}, hml, merged: false
-                Process.register(mon, :monitor)
-                {mon, sup}
+                :async_mon.start {m,f,a}, hml, merged: false
+            _ -> 
+                sup = Graft.Supervisor.start_link
+                {:undefined, sup}
         end |> Inspecter.my_inspect("Monitor and Supervisor")
         sup
     end
+
+    def force_promotion(server), do: GenStateMachine.cast server, :force_promotion
 
     @doc """
     Starts the raft cluster.
