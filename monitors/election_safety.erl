@@ -1,6 +1,6 @@
 -module(election_safety).
 -author("detectEr").
--generated("2020/ 8/13 11:11:11").
+-generated("2020/ 8/13 12:38:58").
 -export([mfa_spec/1]).
 mfa_spec({proc_lib, init_p,
           [_, _, _, _, [_, _, _, {local, Supervisor}, _, _, _]]})
@@ -96,42 +96,7 @@ mfa_spec({proc_lib, init_p,
                                                                        "ached"
                                                                        " verd"
                                                                        "ict '"
-                                                                       "no'.~"
-                                                                       "n\e[0m",
-                                                                       [self()]),
-                                                             no
-                                                         end;
-                                                     (_E =
-                                                          {trace,
-                                                           NewLeader,
-                                                           send,
-                                                           {_,
-                                                            #{'__struct__' := 'Elixir.Graft.AppendEntriesRPC',
-                                                  term := NewTerm}},
-                                                           _})
-                                                         when
-                                                             Term
-                                                             >
-                                                             NewTerm ->
-                                                         io:format("\e[37m"
-                                                                   "*** ["
-                                                                   "~w] A"
-                                                                   "nalyz"
-                                                                   "ing e"
-                                                                   "vent "
-                                                                   "~p.~n"
-                                                                   "\e[0m",
-                                                                   [self(),
-                                                                    _E]),
-                                                         begin
-                                                             io:format("\e[1m\e"
-                                                                       "[31m*"
-                                                                       "** [~"
-                                                                       "w] Re"
-                                                                       "ached"
-                                                                       " verd"
-                                                                       "ict '"
-                                                                       "no'.~"
+                                                                       "no'. Election safety compromised!~"
                                                                        "n\e[0m",
                                                                        [self()]),
                                                              no
@@ -171,6 +136,100 @@ mfa_spec({proc_lib, init_p,
                                                                        [self(),
                                                                         'X']),
                                                              X(NewLeader, NewTerm)
+                                                         end;
+                                                     (_E =
+                                                          {trace,
+                                                           Server, exit,
+                                                           _})
+                                                         when
+                                                             Server
+                                                             =:=
+                                                             Leader ->
+                                                         io:format("\e[37m"
+                                                                   "*** ["
+                                                                   "~w] A"
+                                                                   "nalyz"
+                                                                   "ing e"
+                                                                   "vent "
+                                                                   "~p.~n"
+                                                                   "\e[0m",
+                                                                   [self(),
+                                                                    _E]),
+                                                         begin
+                                                             io:format("\e[36m"
+                                                                       "*** ["
+                                                                       "~w] U"
+                                                                       "nfold"
+                                                                       "ing r"
+                                                                       "ec. v"
+                                                                       "ar. ~"
+                                                                       "p.~n\e"
+                                                                       "[0m",
+                                                                       [self(),
+                                                                        'START']),
+                                                             START()
+                                                         end;
+                                                     (_E =
+                                                          {trace, _P,
+                                                           spawn, _C,
+                                                           {proc_lib,
+                                                            init_p,
+                                                            [_, _, _, _,
+                                                             _]}}) ->
+                                                         io:format("\e[37m"
+                                                                   "*** ["
+                                                                   "~w] A"
+                                                                   "nalyz"
+                                                                   "ing e"
+                                                                   "vent "
+                                                                   "~p.~n"
+                                                                   "\e[0m",
+                                                                   [self(),
+                                                                    _E]),
+                                                         begin
+                                                             io:format("\e[36m"
+                                                                       "*** ["
+                                                                       "~w] U"
+                                                                       "nfold"
+                                                                       "ing r"
+                                                                       "ec. v"
+                                                                       "ar. ~"
+                                                                       "p.~n\e"
+                                                                       "[0m",
+                                                                       [self(),
+                                                                        'X']),
+                                                             X(Leader, Term)
+                                                         end;
+                                                     (_E =
+                                                          {trace, _C,
+                                                           spawned, _P,
+                                                           {proc_lib,
+                                                            init_p,
+                                                            [_, _, _, _,
+                                                             _]}}) ->
+                                                         io:format("\e[37m"
+                                                                   "*** ["
+                                                                   "~w] A"
+                                                                   "nalyz"
+                                                                   "ing e"
+                                                                   "vent "
+                                                                   "~p.~n"
+                                                                   "\e[0m",
+                                                                   [self(),
+                                                                    _E]),
+                                                         begin
+                                                             io:format("\e[36m"
+                                                                       "*** ["
+                                                                       "~w] U"
+                                                                       "nfold"
+                                                                       "ing r"
+                                                                       "ec. v"
+                                                                       "ar. ~"
+                                                                       "p.~n\e"
+                                                                       "[0m",
+                                                                       [self(),
+                                                                        'X']),
+                                                             X(Leader, Term)
                                                          end;
                                                      (_E =
                                                           {trace,
@@ -228,6 +287,34 @@ mfa_spec({proc_lib, init_p,
                                                                         'X']),
                                                              X(Leader, Term)
                                                          end;
+                                                     (_E =
+                                                          {trace,
+                                                           _Server,
+                                                           exit, _}) ->
+                                                         io:format("\e[37m"
+                                                                   "*** ["
+                                                                   "~w] A"
+                                                                   "nalyz"
+                                                                   "ing e"
+                                                                   "vent "
+                                                                   "~p.~n"
+                                                                   "\e[0m",
+                                                                   [self(),
+                                                                    _E]),
+                                                         begin
+                                                             io:format("\e[36m"
+                                                                       "*** ["
+                                                                       "~w] U"
+                                                                       "nfold"
+                                                                       "ing r"
+                                                                       "ec. v"
+                                                                       "ar. ~"
+                                                                       "p.~n\e"
+                                                                       "[0m",
+                                                                       [self(),
+                                                                        'X']),
+                                                             X(Leader, Term)
+                                                         end;
                                                      (_E) ->
                                                          begin
                                                              io:format("\e[1m\e"
@@ -249,6 +336,40 @@ mfa_spec({proc_lib, init_p,
                                                   end
                                           end(Leader, Term);
                                       (_E =
+                                           {trace, _P, spawn, _C,
+                                            {proc_lib, init_p,
+                                             [_, _, _, _, _]}}) ->
+                                          io:format("\e[37m*** [~w] Ana"
+                                                    "lyzing event ~p.~n"
+                                                    "\e[0m",
+                                                    [self(), _E]),
+                                          begin
+                                              io:format("\e[36m*** [~w]"
+                                                        " Unfolding rec"
+                                                        ". var. ~p.~n\e"
+                                                        "[0m",
+                                                        [self(),
+                                                         'START']),
+                                              START()
+                                          end;
+                                      (_E =
+                                           {trace, _C, spawned, _P,
+                                            {proc_lib, init_p,
+                                             [_, _, _, _, _]}}) ->
+                                          io:format("\e[37m*** [~w] Ana"
+                                                    "lyzing event ~p.~n"
+                                                    "\e[0m",
+                                                    [self(), _E]),
+                                          begin
+                                              io:format("\e[36m*** [~w]"
+                                                        " Unfolding rec"
+                                                        ". var. ~p.~n\e"
+                                                        "[0m",
+                                                        [self(),
+                                                         'START']),
+                                              START()
+                                          end;
+                                      (_E =
                                            {trace, _Server, 'receive',
                                             _}) ->
                                           io:format("\e[37m*** [~w] Ana"
@@ -265,6 +386,20 @@ mfa_spec({proc_lib, init_p,
                                               START()
                                           end;
                                       (_E = {trace, _Server, send, _, _}) ->
+                                          io:format("\e[37m*** [~w] Ana"
+                                                    "lyzing event ~p.~n"
+                                                    "\e[0m",
+                                                    [self(), _E]),
+                                          begin
+                                              io:format("\e[36m*** [~w]"
+                                                        " Unfolding rec"
+                                                        ". var. ~p.~n\e"
+                                                        "[0m",
+                                                        [self(),
+                                                         'START']),
+                                              START()
+                                          end;
+                                      (_E = {trace, _Server, exit, _}) ->
                                           io:format("\e[37m*** [~w] Ana"
                                                     "lyzing event ~p.~n"
                                                     "\e[0m",
