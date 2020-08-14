@@ -78,27 +78,29 @@ defmodule Graft do
 
     def start(), do: for server <- Application.fetch_env!(:graft, :cluster), do: GenStateMachine.cast server, :start
     def start(_type, _args) do
-        {mon, sup} = case Application.fetch_env!(:graft, :monitor) do
+        case Application.fetch_env!(:graft, :monitor) do
             [module: m, function: f, args: a, hml: hml] ->
-                :async_mon.start {m,f,a}, hml, merged: false
-            _ -> 
-                sup = Graft.Supervisor.start_link
-                {:undefined, sup}
-        end |> Inspecter.my_inspect("Monitor and Supervisor")
-        sup
+                {_, sup} = :async_mon.start {m,f,a}, hml, merged: false
+                sup
+            _ -> Graft.Supervisor.start_link
+        end
     end
 
     def force_promotion(server), do: GenStateMachine.cast server, :force_promotion
+    def leader(server), do: GenStateMachine.call server, :leader
+    def stop_server(server), do: Supervisor.terminate_child Graft.Supervisor, server
+    def restart_server(server), do: Supervisor.restart_child Graft.Supervisor, server 
+    def send_AE(leader, follower), do: GenStateMachine.cast leader, {:send_append_entries, follower}
 
-    @doc """
-    Starts the raft cluster.
+    # @doc """
+    # Starts the raft cluster.
 
-    `servers` - list of server names.
-    `machine_module` - module using the `Graft.Machine` behaviour to define the replicated state machine.
-    `machine_args` - an optional list of arguments that are passed to the `init` function of the machine.
+    # `servers` - list of server names.
+    # `machine_module` - module using the `Graft.Machine` behaviour to define the replicated state machine.
+    # `machine_args` - an optional list of arguments that are passed to the `init` function of the machine.
 
-    Returns `{:ok, pid}` where `pid` is the supervisor pid which can be used to supervise the cluster's servers.
-    """
+    # Returns `{:ok, pid}` where `pid` is the supervisor pid which can be used to supervise the cluster's servers.
+    # """
     # @spec start(list(atom), module(), list(any)) :: {:ok, pid()}
     # def start(servers, machine_module, machine_args \\ []) do
     #     {:ok, supervisor_pid} = Graft.Supervisor.start_link servers, machine_module, machine_args
