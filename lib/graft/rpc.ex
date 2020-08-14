@@ -13,7 +13,8 @@ defmodule Graft.AppendEntriesRPCReply do
     defstruct term: -1,             # current_term, for leader to update itself
               success: false,       # true if follower contained entry matching prev_log_index and prev_log_term
               last_log_index: -1,   # index of last entry in follower's log
-              last_log_term: -1     # term of last entry in follower's log
+              last_log_term: -1,    # term of last entry in follower's log
+              from: nil             # name of replying server, used to resend new AE with previous entries
 end
 
 defmodule Graft.RequestVoteRPC do
