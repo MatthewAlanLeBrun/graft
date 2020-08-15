@@ -92,7 +92,7 @@ defmodule Graft.Server do
         %Graft.State{current_term: current_term, me: me}) when term < current_term
     do
         Logger.debug "#{inspect me} received AE RPC with outdated term. Replying with success: false."
-        reply :ae, leader, me, current_term, false #TODO: CHECK THE 'me'
+        reply :ae, leader, me, current_term, false 
         {:keep_state_and_data, []}
     end
 
@@ -101,7 +101,7 @@ defmodule Graft.Server do
         data = %Graft.State{current_term: current_term, log: log, commit_index: commit_index})
     do
         resolve_ae = fn log ->
-            new_log = [{last_new_index, last_new_term, _entry} | _tail] = append_entries log, entries, term
+            new_log = [{last_new_index, last_new_term, _entry} | _tail] = append_entries log, entries, term, rpc_pli
             commit_index = if (leader_commit > commit_index), do: min(leader_commit, last_new_index), else: commit_index
             Logger.debug "#{inspect data.me} is appending the new entry. Replying to #{inspect(leader)} with success: true."
             case entries do
@@ -113,14 +113,11 @@ defmodule Graft.Server do
         end
 
         Logger.debug "#{inspect data.me} received AppendEntriesRPC from #{inspect(leader)}."
-        case Enum.at(ordered_log = Enum.reverse(log), rpc_pli) do
-            {^rpc_pli, ^rpc_plt, _entry} -> # matching
+        case Enum.at(Enum.reverse(log), rpc_pli) do
+            {^rpc_pli, ^rpc_plt, _entry} ->
+                Logger.debug "Matching log"
                 resolve_ae.(log)
-            {^rpc_pli, term, _entry} when term !== rpc_plt -> # conflicting
-                {_bad, new_log} = Enum.split(ordered_log, rpc_pli)
-                Enum.reverse new_log
-                |> resolve_ae.()
-            _ -> # bad log
+            _ ->
                 Logger.debug "#{inspect data.me} did NOT append entry because of bad log. Replying to #{inspect(leader)} with success: false."
                 GenStateMachine.cast leader, %Graft.AppendEntriesRPCReply{term: current_term, success: false, from: data.me}
                 {:keep_state_and_data, [{{:timeout, :election_timeout}, generate_time_out(), :begin_election}]}
@@ -372,9 +369,26 @@ defmodule Graft.Server do
         GenStateMachine.cast(to, %Graft.AppendEntriesRPCReply{term: term, success: success, last_log_index: lli, last_log_term: llt, from: from})
     end
 
-    def append_entries(log, entries, term) do
-        Stream.with_index(entries, Enum.count(log))
+    def append_entries(log, entries, term, pli) do
+        ordered_log = Enum.reverse log
+        entries = Stream.with_index(entries, pli+1)
         |> Enum.map(fn {entry, index} -> {index, term, entry} end)
+
+        entries = for e={i, t, _} <- entries do
+            case Enum.at ordered_log, i do
+                {^i, ^t, _} -> nil
+                {^i, term, _} when term !==t -> e
+                nil -> e
+            end
+        end
+        |> Enum.drop_while(fn x -> x==nil end)
+        
+        log = case entries do
+            [{i, _, _} | _tail] -> Enum.slice ordered_log, 0..i-1
+            [] -> ordered_log
+        end |> Enum.reverse
+        
+        entries
         |> Enum.reverse
         |> Kernel.++(log)
     end
