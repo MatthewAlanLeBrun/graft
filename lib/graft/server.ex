@@ -173,8 +173,8 @@ defmodule Graft.Server do
         current_term: current_term, log: [{last_index, last_term, _} | _tail]})
     do
         Logger.debug "#{inspect data.me} is sending out RequestVoteRPCs to all other nodes."
-        for server={name, node} <- servers, server !== me do
-            GenStateMachine.cast({name, node}, %Graft.RequestVoteRPC{
+        for server <- servers, server !== me do
+            GenStateMachine.cast(server, %Graft.RequestVoteRPC{
                 term: current_term+1,
                 candidate_name: me,
                 last_log_index: last_index,
