@@ -199,40 +199,6 @@ mfa_spec({proc_lib, init_p,
                                                   end
                                           end(LeaderLog);
                                       (_E =
-                                           {trace, _P, spawn, _C,
-                                            {proc_lib, init_p,
-                                             [_, _, _, _, _]}}) ->
-                                          io:format("\e[37m*** [~w] Ana"
-                                                    "lyzing event ~p.~n"
-                                                    "\e[0m",
-                                                    [self(), _E]),
-                                          begin
-                                              io:format("\e[36m*** [~w]"
-                                                        " Unfolding rec"
-                                                        ". var. ~p.~n\e"
-                                                        "[0m",
-                                                        [self(),
-                                                         'START']),
-                                              START()
-                                          end;
-                                      (_E =
-                                           {trace, _C, spawned, _P,
-                                            {proc_lib, init_p,
-                                             [_, _, _, _, _]}}) ->
-                                          io:format("\e[37m*** [~w] Ana"
-                                                    "lyzing event ~p.~n"
-                                                    "\e[0m",
-                                                    [self(), _E]),
-                                          begin
-                                              io:format("\e[36m*** [~w]"
-                                                        " Unfolding rec"
-                                                        ". var. ~p.~n\e"
-                                                        "[0m",
-                                                        [self(),
-                                                         'START']),
-                                              START()
-                                          end;
-                                      (_E =
                                            {trace, _Server, 'receive',
                                             _}) ->
                                           io:format("\e[37m*** [~w] Ana"
