@@ -16,8 +16,6 @@ monitor
                                 [_Server ** _] START
                             )
                         ),
-                        [_P -> _C, proc_lib:init_p(_,_,_,_,_)] START,
-                        [_P <- _C, proc_lib:init_p(_,_,_,_,_)] START,
                         [_Server ? _] START,
                         [_Server ! _] START,
                         [_Server ** _] START
