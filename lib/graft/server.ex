@@ -101,7 +101,7 @@ defmodule Graft.Server do
         data = %Graft.State{current_term: current_term, log: log, commit_index: commit_index})
     do
         resolve_ae = fn log ->
-            new_log = [{last_new_index, last_new_term, _entry} | _tail] = append_entries log, entries, term, rpc_pli
+            new_log = [{last_new_index, last_new_term, _entry} | _tail] = append_entries log, entries, rpc_pli
             commit_index = if (leader_commit > commit_index), do: min(leader_commit, last_new_index), else: commit_index
             Logger.debug "#{inspect data.me} is appending the new entry. Replying to #{inspect(leader)} with success: true."
             case entries do
@@ -311,8 +311,8 @@ defmodule Graft.Server do
         entry = if (next = data.next_index[to]) > last_index do
             []
         else
-            {^next, _, entry} = Enum.reverse(log) |> Enum.at(next)
-            [entry]
+            {^next, term, entry} = Enum.reverse(log) |> Enum.at(next)
+            [{term, entry}]
         end
         {prev_index, prev_term, _prev_enrty} = case log do
             [{0, 0, nil}] -> {0, 0, nil}
@@ -369,10 +369,14 @@ defmodule Graft.Server do
         GenStateMachine.cast(to, %Graft.AppendEntriesRPCReply{term: term, success: success, last_log_index: lli, last_log_term: llt, from: from})
     end
 
-    def append_entries(log, entries, term, pli) do
+    def append_entries(log, [], _pli) do
+        log
+    end
+
+    def append_entries(log, entries, pli) do
         ordered_log = Enum.reverse log
         entries = Stream.with_index(entries, pli+1)
-        |> Enum.map(fn {entry, index} -> {index, term, entry} end)
+        |> Enum.map(fn {{term, entry}, index} -> {index, term, entry} end)
 
         entries = for e={i, t, _} <- entries do
             case Enum.at ordered_log, i do
