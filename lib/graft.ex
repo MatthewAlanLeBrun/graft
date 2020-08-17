@@ -87,10 +87,11 @@ defmodule Graft do
     end
 
     def force_promotion(server), do: GenStateMachine.cast server, :force_promotion
+    def force_delete_entry(server), do: :sys.replace_state server, fn({state, data=%Graft.State{log: [_head | tail]}}) -> {state, %Graft.State{data | log: tail}} end
+    def force_replace_entry(server), do: :sys.replace_state server, fn({state, data=%Graft.State{log: [{i,t,_} | tail]}}) -> {state, %Graft.State{data | log: [{i,t,:replaced} | tail]}} end
     def leader(server), do: GenStateMachine.call server, :leader
     def stop_server(server), do: Supervisor.terminate_child Graft.Supervisor, server
-    def restart_server(server), do: Supervisor.restart_child Graft.Supervisor, server 
-    def send_AE(leader, follower), do: GenStateMachine.cast leader, {:send_append_entries, follower}
+    def restart_server(server), do: Supervisor.restart_child Graft.Supervisor, server
 
     # @doc """
     # Starts the raft cluster.
