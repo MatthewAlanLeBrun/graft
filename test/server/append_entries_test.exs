@@ -60,7 +60,7 @@ defmodule Graft.AppendEntiresTest do
             leader_name: leader,
             prev_log_index: 0,
             prev_log_term: 0,
-            entries: [:ok]
+            entries: [{1,:ok}]
         }
 
         state = %Graft.State{
@@ -96,7 +96,7 @@ defmodule Graft.AppendEntiresTest do
             leader_name: leader,
             prev_log_index: 0,
             prev_log_term: 0,
-            entries: [:ok]
+            entries: [{2, :ok}]
         }
 
         state = %Graft.State{
@@ -132,7 +132,7 @@ defmodule Graft.AppendEntiresTest do
             leader_name: leader,
             prev_log_index: 0,
             prev_log_term: 0,
-            entries: [:ok]
+            entries: [{1,:ok}]
         }
 
         state = %Graft.State{
@@ -168,7 +168,7 @@ defmodule Graft.AppendEntiresTest do
             leader_name: leader,
             prev_log_index: 0,
             prev_log_term: 0,
-            entries: [:ok],
+            entries: [{1,:ok}],
             leader_commit: 1
         }
 
@@ -206,7 +206,7 @@ defmodule Graft.AppendEntiresTest do
             leader_name: leader,
             prev_log_index: 0,
             prev_log_term: 0,
-            entries: [:ok],
+            entries: [{2,:ok}],
             leader_commit: 2
         }
 
