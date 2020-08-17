@@ -1,0 +1,21 @@
+with
+    proc_lib:init_p(_,_,_,_,[_,_,_,{local, Supervisor},_,_,_]) when Supervisor =:= 'Elixir.Graft.Supervisor'
+monitor
+    and([_LauncherPid <- _SupervisorPid, proc_lib:init_p(_,_,_,_,_)] 
+        max(INIT_LOOP.
+            and(
+                [_P -> _C, proc_lib:init_p(_,_,_,_,_)]INIT_LOOP,
+                [_P <- _C, proc_lib:init_p(_,_,_,_,_)]INIT_LOOP,
+                [_Server ? {ack, _, {ok, _}}]INIT_LOOP,
+                [_Server ? {_, start}] max(START.
+                    and(
+                        [_P -> _C, proc_lib:init_p(_,_,_,_,_)] START,
+                        [_P <- _C, proc_lib:init_p(_,_,_,_,_)] START,
+                        [_Server ? _] START,
+                        [_Server ! _] START, %%% Check logs every send event
+                        [_Server ** _] START
+                    )
+                )
+            )
+        )
+    ).
