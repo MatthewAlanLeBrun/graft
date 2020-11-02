@@ -77,28 +77,11 @@ defmodule Graft do
     use Application
 
     def start(), do: for server <- Application.fetch_env!(:graft, :cluster), do: GenStateMachine.cast server, :start
-    def start(_type, _args) do
-        case Application.fetch_env!(:graft, :monitor) do
-            [module: m, function: f, args: a, hml: hml] ->
-                {_, sup} = :async_mon.start {m,f,a}, hml, merged: false
-                sup
-            _ -> Graft.Supervisor.start_link
-        end
-    end
+    def start(_type, _args), do: Graft.Supervisor.start_link
 
-    def force_promotion(server), do: GenStateMachine.cast server, :force_promotion
-    def force_term_increment(server), do: :sys.replace_state server, fn({state, data=%Graft.State{current_term: x}}) -> {state, %Graft.State{data | current_term: x+1}} end
-    def force_delete_entry(server),   do: :sys.replace_state server, fn({state, data=%Graft.State{log: [_head | tail]}}) -> {state, %Graft.State{data | log: tail}} end
-    def force_replace_entry(server),  do: :sys.replace_state server, fn({state, data=%Graft.State{log: [{i,t,_} | tail]}}) -> {state, %Graft.State{data | log: [{i,t,:replaced} | tail]}} end
     def leader(server), do: GenStateMachine.call server, :leader
     def stop_server(server), do: Supervisor.terminate_child Graft.Supervisor, server
     def restart_server(server), do: Supervisor.restart_child Graft.Supervisor, server
-    def violate_leader_completeness(leader, new_leader) do
-        stop_server leader
-        force_delete_entry new_leader
-        force_term_increment new_leader
-        force_promotion new_leader 
-    end
 
     # @doc """
     # Starts the raft cluster.
@@ -120,7 +103,7 @@ defmodule Graft do
     @doc """
     Print out the internal state of the `server`.
     """
-    def data(server), do: GenStateMachine.call(server, :data)
+    def data(server), do: :sys.get_state server
 
     @doc """
     Make a new client request to a server within the consensus cluster.
