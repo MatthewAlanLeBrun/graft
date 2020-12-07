@@ -1,5 +1,6 @@
 defmodule Graft.Server do
     @moduledoc false
+    @heartbeat Application.compile_env!(:graft, :heartbeat_timeout)
     use GenStateMachine, callback_mode: :state_functions
     require Logger
 
@@ -24,8 +25,9 @@ defmodule Graft.Server do
     ### General Rules ###
 
     def follower(:cast, :start, data) do
+        t = :os.system_time(:millisecond)
         Logger.debug "#{inspect data.me} is starting its timeout as a follower."
-        {:keep_state_and_data, [{{:timeout, :election_timeout}, generate_time_out(), :begin_election}]}
+        {:keep_state, %Graft.State{data | start_time: t}, [{{:timeout, :election_timeout}, generate_time_out(), :begin_election}]}
     end
 
     def follower({:timeout, :election_timeout}, :begin_election, data) do
@@ -221,6 +223,9 @@ defmodule Graft.Server do
     end
 
     def leader(:cast, :init, data = %Graft.State{log: [{prev_index, _, _} | _]}) do
+        :os.system_time(:millisecond)
+        |> Kernel.-(data.start_time)
+        |> IO.inspect(label: "Promotion time")
         Logger.info "New leader: #{inspect data.me}."
         match_index = for server <- data.servers, into: %{} do
             {server, 0}
@@ -317,7 +322,7 @@ defmodule Graft.Server do
         }
         Logger.debug "#{inspect data.me} is sending an AppendEntriesRPC to #{inspect to}. RPC: #{inspect(rpc)}."
         GenStateMachine.cast(to, rpc)
-        {:keep_state, %Graft.State{data | ready: ready}, [{{:timeout, {:heartbeat, to}}, 3000, :send_heartbeat}]}
+        {:keep_state, %Graft.State{data | ready: ready}, [{{:timeout, {:heartbeat, to}}, @heartbeat, :send_heartbeat}]}
     end
 
     ### Default ###
@@ -342,7 +347,7 @@ defmodule Graft.Server do
     #### OTHER FUNCTIONS ####
     ############################################################################
 
-    def generate_time_out, do: Application.fetch_env!(:graft, :timeout).()
+    def generate_time_out, do: Application.fetch_env!(:graft, :server_timeout).()
 
     def reply(:rv, to, term, vote) do
         Logger.debug "#{inspect self()} is sending RV RPC REPLY to #{inspect to} with vote_granted: #{inspect vote}."

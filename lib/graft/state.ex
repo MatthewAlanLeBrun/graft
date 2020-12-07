@@ -14,5 +14,6 @@ defmodule Graft.State do
               votes: 0,             # number of votes obtained
               leader: nil,          # the id of the node believed to be the leader
               machine: nil,         # the replicated state machine pid
-              requests: %{}         # for each request, the address of the client who requested it
+              requests: %{},        # for each request, the address of the client who requested it
+              start_time: 0         # time protocol was started
 end
