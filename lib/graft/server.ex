@@ -8,11 +8,6 @@ defmodule Graft.Server do
         GenStateMachine.start_link(__MODULE__, [me, servers, machine_module, machine_args], name: me)
     end
 
-    # def start_link(me, servers, state, machine_module, machine_args) do
-    #     IO.inspect me, label: "Starting server"
-    #     GenStateMachine.start_link(__MODULE__, [me, servers, state, machine_module, machine_args], name: me)
-    # end
-
     def init([me, servers, machine_module, machine_args]) do
         {:ok, machine} = Graft.Machine.register machine_module, machine_args
         Logger.info "#{me} registered #{machine_module} as its machine."
@@ -21,12 +16,6 @@ defmodule Graft.Server do
                                       server_count: length(servers),
                                       machine: machine}}
     end
-
-    # def init([me, servers, {state, data}, machine_module, machine_args]) do
-    #     {:ok, machine} = Graft.Machine.register machine_module, machine_args
-    #     IO.puts("registered machine")
-    #     {:ok, state, data}
-    # end
 
     ############################################################################
     #### FOLLOWER BEHAVIOUR ####
@@ -353,7 +342,7 @@ defmodule Graft.Server do
     #### OTHER FUNCTIONS ####
     ############################################################################
 
-    def generate_time_out, do: :rand.uniform(500)*10+5000
+    def generate_time_out, do: Application.fetch_env!(:graft, :timeout).()
 
     def reply(:rv, to, term, vote) do
         Logger.debug "#{inspect self()} is sending RV RPC REPLY to #{inspect to} with vote_granted: #{inspect vote}."
