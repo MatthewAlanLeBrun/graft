@@ -78,6 +78,7 @@ defmodule Graft do
 
     def start(), do: for server <- Application.fetch_env!(:graft, :cluster), do: GenStateMachine.cast server, :start
     def start(_type, _args), do: Graft.Supervisor.start_link
+    def stop(), do: Supervisor.stop Graft.Supervisor
 
     def leader(server), do: GenStateMachine.call server, :leader
     def stop_server(server), do: Supervisor.terminate_child Graft.Supervisor, server
