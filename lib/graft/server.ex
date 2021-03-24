@@ -1,6 +1,6 @@
 defmodule Graft.Server do
     @moduledoc false
-    @heartbeat Application.compile_env!(:graft, :heartbeat_timeout)
+    @heartbeat Application.compile_env(:graft, :heartbeat_timeout)
     use GenStateMachine, callback_mode: :state_functions
     require Logger
 
@@ -25,9 +25,8 @@ defmodule Graft.Server do
     ### General Rules ###
 
     def follower(:cast, :start, data) do
-        t = :os.system_time(:millisecond)
         Logger.debug "#{inspect data.me} is starting its timeout as a follower."
-        {:keep_state, %Graft.State{data | start_time: t}, [{{:timeout, :election_timeout}, generate_time_out(), :begin_election}]}
+        {:keep_state_and_data, [{{:timeout, :election_timeout}, generate_time_out(), :begin_election}]}
     end
 
     def follower({:timeout, :election_timeout}, :begin_election, data) do
@@ -223,9 +222,8 @@ defmodule Graft.Server do
     end
 
     def leader(:cast, :init, data = %Graft.State{log: [{prev_index, _, _} | _]}) do
-        :os.system_time(:millisecond)
-        |> Kernel.-(data.start_time)
-        |> IO.inspect(label: "Promotion time")
+        t=:os.system_time(:millisecond)
+        Graft.Timer.elected t, data.me
         Logger.info "New leader: #{inspect data.me}."
         match_index = for server <- data.servers, into: %{} do
             {server, 0}
