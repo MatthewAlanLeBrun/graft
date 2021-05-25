@@ -1,32 +1,49 @@
 defmodule Graft.AppendEntriesRPC do
-    @moduledoc false
-    defstruct term: -1,             # leader’s term
-              leader_name: nil,     # so follower can redirect clients
-              prev_log_index: -1,   # index of log entry immediately preceding new ones
-              prev_log_term: -1,    # term of prevLogIndex entry
-              entries: [],          # log entries to store (empty for heartbeat; may send more than one for efficiency)
-              leader_commit: -1     # leader’s commit_index
+  @moduledoc false
+            # leader’s term
+  defstruct term: -1,
+            # so follower can redirect clients
+            leader_name: nil,
+            # index of log entry immediately preceding new ones
+            prev_log_index: -1,
+            # term of prevLogIndex entry
+            prev_log_term: -1,
+            # log entries to store (empty for heartbeat; may send more than one for efficiency)
+            entries: [],
+            # leader’s commit_index
+            leader_commit: -1
 end
 
 defmodule Graft.AppendEntriesRPCReply do
-    @moduledoc false
-    defstruct term: -1,             # current_term, for leader to update itself
-              success: false,       # true if follower contained entry matching prev_log_index and prev_log_term
-              last_log_index: -1,   # index of last entry in follower's log
-              last_log_term: -1,    # term of last entry in follower's log
-              from: nil             # name of replying server, used to resend new AE with previous entries
+  @moduledoc false
+            # current_term, for leader to update itself
+  defstruct term: -1,
+            # true if follower contained entry matching prev_log_index and prev_log_term
+            success: false,
+            # index of last entry in follower's log
+            last_log_index: -1,
+            # term of last entry in follower's log
+            last_log_term: -1,
+            # name of replying server, used to resend new AE with previous entries
+            from: nil
 end
 
 defmodule Graft.RequestVoteRPC do
-    @moduledoc false
-    defstruct term: -1,             # candidate’s term
-              candidate_name: nil,  # candidate requesting vote
-              last_log_index: -1,   # index of candidate’s last log entry
-              last_log_term: -1     # term of candidate’s last log entry
+  @moduledoc false
+            # candidate’s term
+  defstruct term: -1,
+            # candidate requesting vote
+            candidate_name: nil,
+            # index of candidate’s last log entry
+            last_log_index: -1,
+            # term of candidate’s last log entry
+            last_log_term: -1
 end
 
 defmodule Graft.RequestVoteRPCReply do
-    @moduledoc false
-    defstruct term: -1,             # current_term, for candidate to update itself
-              vote_granted: false   # true means candidate received vote
+  @moduledoc false
+            # current_term, for candidate to update itself
+  defstruct term: -1,
+            # true means candidate received vote
+            vote_granted: false
 end
