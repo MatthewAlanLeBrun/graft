@@ -1,238 +1,247 @@
 defmodule Graft.AppendEntiresTest do
-    use ExUnit.Case, async: true
+  use ExUnit.Case, async: true
 
-    test "follower replies false if term < current_term" do
-        leader = self()
+  test "follower replies false if term < current_term" do
+    leader = self()
 
-        rpc = %Graft.AppendEntriesRPC{
-            term: 1,
-            leader_name: leader
-        }
+    rpc = %Graft.AppendEntriesRPC{
+      term: 1,
+      leader_name: leader
+    }
 
-        state = %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 2,
-            leader: leader
-        }
-        
-        Graft.Server.follower :cast, rpc, state
+    state = %Graft.State{
+      me: {:test_server, :nonode@nohost},
+      current_term: 2,
+      leader: leader
+    }
 
-        assert_receive {_, %Graft.AppendEntriesRPCReply{
-            term: 2,
-            success: false,
-            last_log_index: _,
-            last_log_term: _,
-            from: {:test_server, :nonode@nohost}}}
-    end
+    Graft.Server.follower(:cast, rpc, state)
 
-    test "follower replies false if log doesn't contain an entry at prev_log_index whose term matches prev_log_term" do
-        leader = self()
+    assert_receive {_,
+                    %Graft.AppendEntriesRPCReply{
+                      term: 2,
+                      success: false,
+                      last_log_index: _,
+                      last_log_term: _,
+                      from: {:test_server, :nonode@nohost}
+                    }}
+  end
 
-        rpc = %Graft.AppendEntriesRPC{
-            term: 5,
-            leader_name: leader,
-            prev_log_index: 2,
-            prev_log_term: 4
-        }
+  test "follower replies false if log doesn't contain an entry at prev_log_index whose term matches prev_log_term" do
+    leader = self()
 
-        state = %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 5,
-            log: [{2,3,:ok}, {1,3,:ok}, {0,0,nil}],
-            leader: leader
-        }
+    rpc = %Graft.AppendEntriesRPC{
+      term: 5,
+      leader_name: leader,
+      prev_log_index: 2,
+      prev_log_term: 4
+    }
 
-        Graft.Server.follower :cast, rpc, state
+    state = %Graft.State{
+      me: {:test_server, :nonode@nohost},
+      current_term: 5,
+      log: [{2, 3, :ok}, {1, 3, :ok}, {0, 0, nil}],
+      leader: leader
+    }
 
-        assert_receive {_, %Graft.AppendEntriesRPCReply{
-            term: 5,
-            success: false,
-            last_log_index: _,
-            last_log_term: _,
-            from: {:test_server, :nonode@nohost}}}
-    end
+    Graft.Server.follower(:cast, rpc, state)
 
-    test "follower appends new entries not already in log" do
-        leader = self()
+    assert_receive {_,
+                    %Graft.AppendEntriesRPCReply{
+                      term: 5,
+                      success: false,
+                      last_log_index: _,
+                      last_log_term: _,
+                      from: {:test_server, :nonode@nohost}
+                    }}
+  end
 
-        rpc = %Graft.AppendEntriesRPC{
-            term: 1,
-            leader_name: leader,
-            prev_log_index: 0,
-            prev_log_term: 0,
-            entries: [{1,:ok}]
-        }
+  test "follower appends new entries not already in log" do
+    leader = self()
 
-        state = %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 1,
-            log: [{0,0,nil}],
-            leader: leader
-        }
+    rpc = %Graft.AppendEntriesRPC{
+      term: 1,
+      leader_name: leader,
+      prev_log_index: 0,
+      prev_log_term: 0,
+      entries: [{1, :ok}]
+    }
 
-        {:keep_state, new_data, _} = Graft.Server.follower :cast, rpc, state
+    state = %Graft.State{
+      me: {:test_server, :nonode@nohost},
+      current_term: 1,
+      log: [{0, 0, nil}],
+      leader: leader
+    }
 
-        assert new_data == %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 1,
-            log: [{1,1,:ok}, {0,0,nil}],
-            leader: leader
-        }
+    {:keep_state, new_data, _} = Graft.Server.follower(:cast, rpc, state)
 
-        assert_receive {_, %Graft.AppendEntriesRPCReply{
-            term: 1,
-            success: true,
-            last_log_index: 1,
-            last_log_term: 1,
-            from: {:test_server, :nonode@nohost}}
-        }
-    end
+    assert new_data == %Graft.State{
+             me: {:test_server, :nonode@nohost},
+             current_term: 1,
+             log: [{1, 1, :ok}, {0, 0, nil}],
+             leader: leader
+           }
 
-    test "follower deletes conflicting new entries and appends new" do
-        leader = self()
+    assert_receive {_,
+                    %Graft.AppendEntriesRPCReply{
+                      term: 1,
+                      success: true,
+                      last_log_index: 1,
+                      last_log_term: 1,
+                      from: {:test_server, :nonode@nohost}
+                    }}
+  end
 
-        rpc = %Graft.AppendEntriesRPC{
-            term: 2,
-            leader_name: leader,
-            prev_log_index: 0,
-            prev_log_term: 0,
-            entries: [{2, :ok}]
-        }
+  test "follower deletes conflicting new entries and appends new" do
+    leader = self()
 
-        state = %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 2,
-            log: [{1,1,:noop},{0,0,nil}],
-            leader: leader
-        }
+    rpc = %Graft.AppendEntriesRPC{
+      term: 2,
+      leader_name: leader,
+      prev_log_index: 0,
+      prev_log_term: 0,
+      entries: [{2, :ok}]
+    }
 
-        {:keep_state, new_data, _} = Graft.Server.follower :cast, rpc, state
+    state = %Graft.State{
+      me: {:test_server, :nonode@nohost},
+      current_term: 2,
+      log: [{1, 1, :noop}, {0, 0, nil}],
+      leader: leader
+    }
 
-        assert new_data == %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 2,
-            log: [{1,2,:ok}, {0,0,nil}],
-            leader: leader
-        }
+    {:keep_state, new_data, _} = Graft.Server.follower(:cast, rpc, state)
 
-        assert_receive {_, %Graft.AppendEntriesRPCReply{
-            term: 2,
-            success: true,
-            last_log_index: 1,
-            last_log_term: 2,
-            from: {:test_server, :nonode@nohost}}
-        }
-    end
+    assert new_data == %Graft.State{
+             me: {:test_server, :nonode@nohost},
+             current_term: 2,
+             log: [{1, 2, :ok}, {0, 0, nil}],
+             leader: leader
+           }
 
-    test "follower doesn't re-append new entries already in log" do
-        leader = self()
+    assert_receive {_,
+                    %Graft.AppendEntriesRPCReply{
+                      term: 2,
+                      success: true,
+                      last_log_index: 1,
+                      last_log_term: 2,
+                      from: {:test_server, :nonode@nohost}
+                    }}
+  end
 
-        rpc = %Graft.AppendEntriesRPC{
-            term: 1,
-            leader_name: leader,
-            prev_log_index: 0,
-            prev_log_term: 0,
-            entries: [{1,:ok}]
-        }
+  test "follower doesn't re-append new entries already in log" do
+    leader = self()
 
-        state = %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 1,
-            log: [{1,1,:ok},{0,0,nil}],
-            leader: leader
-        }
+    rpc = %Graft.AppendEntriesRPC{
+      term: 1,
+      leader_name: leader,
+      prev_log_index: 0,
+      prev_log_term: 0,
+      entries: [{1, :ok}]
+    }
 
-        {:keep_state, new_data, _} = Graft.Server.follower :cast, rpc, state
+    state = %Graft.State{
+      me: {:test_server, :nonode@nohost},
+      current_term: 1,
+      log: [{1, 1, :ok}, {0, 0, nil}],
+      leader: leader
+    }
 
-        assert new_data == %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 1,
-            log: [{1,1,:ok}, {0,0,nil}],
-            leader: leader
-        }
+    {:keep_state, new_data, _} = Graft.Server.follower(:cast, rpc, state)
 
-        assert_receive {_, %Graft.AppendEntriesRPCReply{
-            term: 1,
-            success: true,
-            last_log_index: 1,
-            last_log_term: 1,
-            from: {:test_server, :nonode@nohost}}
-        }
-    end
+    assert new_data == %Graft.State{
+             me: {:test_server, :nonode@nohost},
+             current_term: 1,
+             log: [{1, 1, :ok}, {0, 0, nil}],
+             leader: leader
+           }
 
-    test "follower updates commit_index when leader_commit > commit_index" do
-        leader = self()
+    assert_receive {_,
+                    %Graft.AppendEntriesRPCReply{
+                      term: 1,
+                      success: true,
+                      last_log_index: 1,
+                      last_log_term: 1,
+                      from: {:test_server, :nonode@nohost}
+                    }}
+  end
 
-        rpc = %Graft.AppendEntriesRPC{
-            term: 1,
-            leader_name: leader,
-            prev_log_index: 0,
-            prev_log_term: 0,
-            entries: [{1,:ok}],
-            leader_commit: 1
-        }
+  test "follower updates commit_index when leader_commit > commit_index" do
+    leader = self()
 
-        state = %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 1,
-            log: [{0,0,nil}],
-            leader: leader
-        }
+    rpc = %Graft.AppendEntriesRPC{
+      term: 1,
+      leader_name: leader,
+      prev_log_index: 0,
+      prev_log_term: 0,
+      entries: [{1, :ok}],
+      leader_commit: 1
+    }
 
-        {:keep_state, new_data, _} = Graft.Server.follower :cast, rpc, state
+    state = %Graft.State{
+      me: {:test_server, :nonode@nohost},
+      current_term: 1,
+      log: [{0, 0, nil}],
+      leader: leader
+    }
 
-        assert new_data == %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 1,
-            log: [{1,1,:ok}, {0,0,nil}],
-            leader: leader,
-            commit_index: 1
-        }
+    {:keep_state, new_data, _} = Graft.Server.follower(:cast, rpc, state)
 
-        assert_receive {_, %Graft.AppendEntriesRPCReply{
-            term: 1,
-            success: true,
-            last_log_index: 1,
-            last_log_term: 1,
-            from: {:test_server, :nonode@nohost}}
-        }
-    end
+    assert new_data == %Graft.State{
+             me: {:test_server, :nonode@nohost},
+             current_term: 1,
+             log: [{1, 1, :ok}, {0, 0, nil}],
+             leader: leader,
+             commit_index: 1
+           }
 
-    test "follower updates commit_index when leader_commit > commit_index but log is recovering" do
-        leader = self()
+    assert_receive {_,
+                    %Graft.AppendEntriesRPCReply{
+                      term: 1,
+                      success: true,
+                      last_log_index: 1,
+                      last_log_term: 1,
+                      from: {:test_server, :nonode@nohost}
+                    }}
+  end
 
-        rpc = %Graft.AppendEntriesRPC{
-            term: 2,
-            leader_name: leader,
-            prev_log_index: 0,
-            prev_log_term: 0,
-            entries: [{2,:ok}],
-            leader_commit: 2
-        }
+  test "follower updates commit_index when leader_commit > commit_index but log is recovering" do
+    leader = self()
 
-        state = %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 2,
-            log: [{0,0,nil}],
-            leader: leader
-        }
-        
-        {:keep_state, new_data, _} = Graft.Server.follower :cast, rpc, state
+    rpc = %Graft.AppendEntriesRPC{
+      term: 2,
+      leader_name: leader,
+      prev_log_index: 0,
+      prev_log_term: 0,
+      entries: [{2, :ok}],
+      leader_commit: 2
+    }
 
-        assert new_data == %Graft.State{
-            me: {:test_server, :nonode@nohost},
-            current_term: 2,
-            log: [{1,2,:ok}, {0,0,nil}],
-            leader: leader,
-            commit_index: 1
-        }
+    state = %Graft.State{
+      me: {:test_server, :nonode@nohost},
+      current_term: 2,
+      log: [{0, 0, nil}],
+      leader: leader
+    }
 
-        assert_receive {_, %Graft.AppendEntriesRPCReply{
-            term: 2,
-            success: true,
-            last_log_index: 1,
-            last_log_term: 2,
-            from: {:test_server, :nonode@nohost}}
-        }
-    end
+    {:keep_state, new_data, _} = Graft.Server.follower(:cast, rpc, state)
+
+    assert new_data == %Graft.State{
+             me: {:test_server, :nonode@nohost},
+             current_term: 2,
+             log: [{1, 2, :ok}, {0, 0, nil}],
+             leader: leader,
+             commit_index: 1
+           }
+
+    assert_receive {_,
+                    %Graft.AppendEntriesRPCReply{
+                      term: 2,
+                      success: true,
+                      last_log_index: 1,
+                      last_log_term: 2,
+                      from: {:test_server, :nonode@nohost}
+                    }}
+  end
 end
