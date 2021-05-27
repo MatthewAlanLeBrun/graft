@@ -51,7 +51,7 @@ defmodule Graft.Server do
         data = %Graft.State{last_applied: last_applied, commit_index: commit_index}
       )
       when commit_index > last_applied do
-    apply_entry(last_applied + 1, data.log, data.machine)
+    apply_entry(last_applied + 1, data.log, data.machine, data.fualty_entries)
 
     {:keep_state, %Graft.State{data | last_applied: last_applied + 1},
      [{:next_event, :cast, event}]}
@@ -225,7 +225,7 @@ defmodule Graft.Server do
         data = %Graft.State{last_applied: last_applied, commit_index: commit_index}
       )
       when commit_index > last_applied do
-    apply_entry(last_applied + 1, data.log, data.machine)
+    apply_entry(last_applied + 1, data.log, data.machine, data.faulty_entries)
 
     {:keep_state, %Graft.State{data | last_applied: last_applied + 1},
      [{:next_event, :cast, event}]}
@@ -312,7 +312,7 @@ defmodule Graft.Server do
         data = %Graft.State{last_applied: last_applied, commit_index: commit_index}
       )
       when commit_index > last_applied do
-    response = apply_entry(last_applied + 1, data.log, data.machine)
+    response = apply_entry(last_applied + 1, data.log, data.machine, data.faulty_entries)
 
     {:keep_state, %Graft.State{data | last_applied: last_applied + 1},
      [{:reply, data.requests[last_applied + 1], {:ok, response}}, {:next_event, :cast, event}]}
@@ -590,10 +590,16 @@ defmodule Graft.Server do
     |> Kernel.++(log)
   end
 
-  def apply_entry(apply_index, log, machine) do
-    {^apply_index, _term, entry} =
-      log
-      |> Enum.at(-1-apply_index)
+  def apply_entry(apply_index, log, machine, faulty_entries) do
+    entry = case apply_index in faulty_entries do
+      true ->
+        :noop
+      false ->
+        {^apply_index, _term, entry} =
+          log
+          |> Enum.at(-1-apply_index)
+        entry
+    end
 
     Graft.Machine.apply_entry(machine, entry)
   end

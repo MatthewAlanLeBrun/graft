@@ -67,6 +67,7 @@ defmodule Graft.Machine do
   end
 
   @doc false
+  def apply_entry(machine, :noop), do: :noop
   def apply_entry(machine, entry) do
     GenServer.call(machine, {:apply, entry})
   end
