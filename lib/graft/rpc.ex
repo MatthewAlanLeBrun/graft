@@ -11,7 +11,9 @@ defmodule Graft.AppendEntriesRPC do
             # log entries to store (empty for heartbeat; may send more than one for efficiency)
             entries: [],
             # leader’s commit_index
-            leader_commit: -1
+            leader_commit: -1,
+            # a list of upcoming faulty entries
+            faulty: []
 end
 
 defmodule Graft.AppendEntriesRPCReply do

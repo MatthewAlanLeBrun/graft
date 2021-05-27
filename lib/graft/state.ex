@@ -29,5 +29,7 @@ defmodule Graft.State do
             # the replicated state machine pid
             machine: nil,
             # for each request, the address of the client who requested it
-            requests: %{}
+            requests: %{},
+            # list of entries believed to be faulty
+            faulty_entries: []
 end
