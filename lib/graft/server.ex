@@ -593,8 +593,7 @@ defmodule Graft.Server do
   def apply_entry(apply_index, log, machine) do
     {^apply_index, _term, entry} =
       log
-      |> Enum.reverse()
-      |> Enum.at(apply_index)
+      |> Enum.at(-1-apply_index)
 
     Graft.Machine.apply_entry(machine, entry)
   end
