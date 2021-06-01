@@ -71,4 +71,7 @@ defmodule Graft.Machine do
   def apply_entry(machine, entry) do
     GenServer.call(machine, {:apply, entry})
   end
+  def apply_entry(machine, entry, :sandbox) do
+    GenServer.cast(:"#{machine}_sandbox", {:apply, self(), entry})
+  end
 end

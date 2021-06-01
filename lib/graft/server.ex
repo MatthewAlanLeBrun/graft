@@ -381,6 +381,10 @@ defmodule Graft.Server do
         {:next_event, :cast, {:send_append_entries, server}}
       end
 
+    # Apply entry to sandbox asynchronously
+    {name, _node} = data.me
+    Graft.Machine.apply_entry(name, entry, :sandbox)
+
     {:keep_state, %Graft.State{data | log: log, requests: requests}, events}
   end
 
