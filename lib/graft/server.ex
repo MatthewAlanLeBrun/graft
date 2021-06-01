@@ -51,7 +51,7 @@ defmodule Graft.Server do
         data = %Graft.State{last_applied: last_applied, commit_index: commit_index}
       )
       when commit_index > last_applied do
-    apply_entry(last_applied + 1, data.log, data.machine, data.fualty_entries)
+    apply_entry(last_applied + 1, data.log, data.machine, data.faulty_entries)
 
     {:keep_state, %Graft.State{data | last_applied: last_applied + 1},
      [{:next_event, :cast, event}]}

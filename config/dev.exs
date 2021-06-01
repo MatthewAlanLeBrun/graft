@@ -4,9 +4,9 @@ config :graft,
   cluster: [
     {:server1, :"nonode@nohost"},
     {:server2, :"nonode@nohost"},
-    {:server3, :"nonode@nohost"},
-    {:server4, :"nonode@nohost"},
-    {:server5, :"nonode@nohost"}
+    {:server3, :"nonode@nohost"}
+#    {:server4, :"nonode@nohost"},
+#    {:server5, :"nonode@nohost"}
   ],
   machine: MySumMachine,
   machine_args: [],
