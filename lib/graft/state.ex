@@ -33,5 +33,7 @@ defmodule Graft.State do
             # list of entries believed to be faulty
             faulty_entries: [],
             # pid of sandbox
-            sandbox: nil
+            sandbox: nil,
+            # result of latest sandbox command
+            sandbox_cache: nil
 end

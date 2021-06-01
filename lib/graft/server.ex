@@ -510,9 +510,9 @@ defmodule Graft.Server do
      [{{:timeout, {:heartbeat, to}}, @heartbeat, :send_heartbeat}]}
   end
 
-  def leader(:cast, {:sandbox, reply}, _data) do
-    Logger.info("Sandbox calculation complete. reply: #{reply}")
-    {:keep_state_and_data, []}
+  def leader(:cast, {:sandbox, reply}, data) do
+    Logger.debug("Sandbox calculation complete. reply: #{reply}")
+    {:keep_state, %Graft.State{data | sandbox_cache: reply}, []}
   end
 
   ### Default ###
@@ -530,7 +530,7 @@ defmodule Graft.Server do
 
   def handle_event(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
       when term > current_term do
-    {:next_state, :follower, %Graft.State{data | current_term: term, voted_for: nil, votes: 0, sandbox: nil},
+    {:next_state, :follower, %Graft.State{data | current_term: term, voted_for: nil, votes: 0, sandbox: nil, sandbox_cache: nil},
      [
        {{:timeout, :heartbeat}, :infinity, :send_heartbeat},
        {{:timeout, :election_timeout}, generate_time_out(), :begin_election},
