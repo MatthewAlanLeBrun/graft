@@ -314,9 +314,12 @@ defmodule Graft.Server do
         data = %Graft.State{last_applied: last_applied, commit_index: commit_index}
       )
       when commit_index > last_applied do
-    response = apply_entry(last_applied + 1, data.log, data.machine, data.faulty_entries)
+    response = case data.sandbox_cache do
+      {:ok, result} -> result
+      :crash -> {:error, "State machine crashed whilst processing the request. The entry was marked as faulty."}
+    end
 
-    {:keep_state, %Graft.State{data | last_applied: last_applied + 1},
+    {:keep_state, %Graft.State{data | last_applied: last_applied + 1, sandbox_cache: nil},
      [{:reply, data.requests[last_applied + 1], {:ok, response}}, {:next_event, :cast, event}]}
   end
 
@@ -442,7 +445,8 @@ defmodule Graft.Server do
             if server !== data.me and index >= lli, do: acc + 1, else: acc
           end)
 
-        if number_of_matches > data.server_count / 2, do: lli, else: data.commit_index
+        if (number_of_matches > data.server_count / 2) and (data.sandbox_cache !== nil), 
+          do: lli, else: data.commit_index
       else
         data.commit_index
       end
@@ -510,8 +514,9 @@ defmodule Graft.Server do
      [{{:timeout, {:heartbeat, to}}, @heartbeat, :send_heartbeat}]}
   end
 
+  # TODO if majority of matches have already happened then commit the entry.
   def leader(:cast, {:sandbox, reply}, data) do
-    Logger.debug("Sandbox calculation complete. reply: #{reply}")
+    Logger.debug("Sandbox calculation complete.")
     {:keep_state, %Graft.State{data | sandbox_cache: reply}, []}
   end
 

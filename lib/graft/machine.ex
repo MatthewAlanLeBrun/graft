@@ -66,7 +66,7 @@ defmodule Graft.Machine do
   def handle_cast({:apply, from, entry}, {module, state}) do
     Logger.debug("Sandbox got asynch request for #{entry}")
     {reply, state} = module.handle_entry(entry, state)
-    GenStateMachine.cast(from, {:sandbox, reply})
+    GenStateMachine.cast(from, {:sandbox, {:ok, reply}})
     {:noreply, {module, state}}
   end
 
