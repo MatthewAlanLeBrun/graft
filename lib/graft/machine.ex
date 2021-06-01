@@ -4,7 +4,7 @@ defmodule Graft.Machine do
   algorithm. Look at the `Graft` module docs for examples on how to create such
   machines.
   """
-
+  require Logger
   use GenServer
 
   @typedoc """
@@ -62,6 +62,15 @@ defmodule Graft.Machine do
   end
 
   @doc false
+  @impl GenServer
+  def handle_cast({:apply, from, entry}, {module, state}) do
+    Logger.debug("Sandbox got asynch request for #{entry}")
+    {reply, state} = module.handle_entry(entry, state)
+    GenStateMachine.cast(from, {:sandbox, reply})
+    {:noreply, {module, state}}
+  end
+
+  @doc false
   def register(module, machine_args \\ []) do
     GenServer.start_link(__MODULE__, [module, machine_args])
   end
@@ -72,6 +81,15 @@ defmodule Graft.Machine do
     GenServer.call(machine, {:apply, entry})
   end
   def apply_entry(machine, entry, :sandbox) do
-    GenServer.cast(:"#{machine}_sandbox", {:apply, self(), entry})
+    Logger.info("Sending entry #{entry} to sandbox")
+    GenServer.cast(machine, {:apply, self(), entry})
+  end
+
+  @doc false
+  def sandbox_child_spec(server, machine_module, machine_args) do
+    %{
+      id: :"#{server}_sandbox",
+      start: {__MODULE__, :register, [machine_module, machine_args]}
+    }
   end
 end

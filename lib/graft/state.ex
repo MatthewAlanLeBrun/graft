@@ -31,5 +31,7 @@ defmodule Graft.State do
             # for each request, the address of the client who requested it
             requests: %{},
             # list of entries believed to be faulty
-            faulty_entries: []
+            faulty_entries: [],
+            # pid of sandbox
+            sandbox: nil
 end

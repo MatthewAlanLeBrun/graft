@@ -10,24 +10,15 @@ defmodule Graft.Supervisor do
   def init([{my_servers, all_servers}, machine_module, machine_args]) do
     Logger.info("This is node #{node()}, servers on this node are #{inspect(my_servers)}")
 
-    servers =
+    children =
       for {name, _node} <- my_servers do
         %{
           id: name,
-          start: {Graft.Server, :start_link, [name, all_servers, machine_module, machine_args]}
-          # restart: :transient
+          start: {Graft.Server, :start_link, [name, all_servers, machine_module, machine_args]},
+          restart: :transient
         }
       end
 
-    sandboxes = 
-      for {name, _node} <- my_servers do
-        %{
-          id: :"#{name}_sandbox",
-          start: {Graft.Machine, :register, [machine_module, machine_args]}
-        }
-      end
-
-    children = servers ++ sandboxes
     Supervisor.init(children, strategy: :one_for_one)
   end
 

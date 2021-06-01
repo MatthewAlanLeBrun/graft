@@ -1,6 +1,8 @@
 defmodule Graft.Server do
   @moduledoc false
   @heartbeat Application.compile_env(:graft, :heartbeat_timeout)
+  @machine_module Application.compile_env(:graft, :machine)
+  @machine_args Application.compile_env(:graft, :machine_args)
   use GenStateMachine, callback_mode: :state_functions
   require Logger
 
@@ -318,14 +320,24 @@ defmodule Graft.Server do
      [{:reply, data.requests[last_applied + 1], {:ok, response}}, {:next_event, :cast, event}]}
   end
 
-  def leader(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
+  def leader(:cast, rpc = %{term: term}, data = %Graft.State{me: {name, _}, current_term: current_term})
       when term > current_term do
     Logger.debug("#{inspect(data.me)} got RPC with with higher term. RPC: #{inspect(rpc)}")
+
+    # Terminate and delete sandbox machine
+    sandbox_id = :"#{name}_sandbox"
+    :ok = Supervisor.terminate_child(Graft.Supervisor, sandbox_id)
+    :ok = Supervisor.delete_child(Graft.Supervisor, sandbox_id)
+
     handle_event(:cast, rpc, data)
   end
 
-  def leader(:cast, :init, data = %Graft.State{log: [{prev_index, _, _} | _]}) do
+  def leader(:cast, :init, data = %Graft.State{me: {name, _}, log: [{prev_index, _, _} | _]}) do
     Logger.info("New leader: #{inspect(data.me)}.")
+
+    # Start sandbox machine
+    {:ok, pid} = Supervisor.start_child(Graft.Supervisor, Graft.Machine.sandbox_child_spec(name, @machine_module, @machine_args))
+    Logger.debug("Started leader's sandbox")
 
     match_index =
       for server <- data.servers, into: %{} do
@@ -348,7 +360,7 @@ defmodule Graft.Server do
       end
 
     {:keep_state,
-     %Graft.State{data | ready: ready, next_index: next_index, match_index: match_index}, events}
+     %Graft.State{data | ready: ready, next_index: next_index, match_index: match_index, sandbox: pid}, events}
   end
 
   def leader({:timeout, {:heartbeat, server}}, :send_heartbeat, %Graft.State{me: me}) do
@@ -382,8 +394,8 @@ defmodule Graft.Server do
       end
 
     # Apply entry to sandbox asynchronously
-    {name, _node} = data.me
-    Graft.Machine.apply_entry(name, entry, :sandbox)
+    Logger.info("Applying entry to sandbox")
+    Graft.Machine.apply_entry(data.sandbox, entry, :sandbox)
 
     {:keep_state, %Graft.State{data | log: log, requests: requests}, events}
   end
@@ -498,6 +510,11 @@ defmodule Graft.Server do
      [{{:timeout, {:heartbeat, to}}, @heartbeat, :send_heartbeat}]}
   end
 
+  def leader(:cast, {:sandbox, reply}, _data) do
+    Logger.info("Sandbox calculation complete. reply: #{reply}")
+    {:keep_state_and_data, []}
+  end
+
   ### Default ###
 
   def leader(:cast, _event, _data), do: {:keep_state_and_data, []}
@@ -513,7 +530,7 @@ defmodule Graft.Server do
 
   def handle_event(:cast, rpc = %{term: term}, data = %Graft.State{current_term: current_term})
       when term > current_term do
-    {:next_state, :follower, %Graft.State{data | current_term: term, voted_for: nil, votes: 0},
+    {:next_state, :follower, %Graft.State{data | current_term: term, voted_for: nil, votes: 0, sandbox: nil},
      [
        {{:timeout, :heartbeat}, :infinity, :send_heartbeat},
        {{:timeout, :election_timeout}, generate_time_out(), :begin_election},
