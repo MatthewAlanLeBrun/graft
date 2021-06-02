@@ -341,6 +341,9 @@ defmodule Graft.Server do
     # Start sandbox machine
     {:ok, pid} = Supervisor.start_child(Graft.Supervisor, Graft.Machine.sandbox_child_spec(name, @machine_module, @machine_args))
     Logger.debug("Started leader's sandbox")
+    # Monitor the sandbox
+    ref = Process.monitor(pid)
+
 
     match_index =
       for server <- data.servers, into: %{} do
@@ -363,7 +366,7 @@ defmodule Graft.Server do
       end
 
     {:keep_state,
-     %Graft.State{data | ready: ready, next_index: next_index, match_index: match_index, sandbox: pid}, events}
+     %Graft.State{data | ready: ready, next_index: next_index, match_index: match_index, sandbox: pid, sandbox_ref: ref}, events}
   end
 
   def leader({:timeout, {:heartbeat, server}}, :send_heartbeat, %Graft.State{me: me}) do
@@ -524,6 +527,11 @@ defmodule Graft.Server do
     {:keep_state, %Graft.State{data | sandbox_cache: reply, commit_index: commit_index}, []}
   end
 
+
+  def leader(:info, {:DOWN, ref, _, _, _}, %Graft.State{sandbox_ref: sb_ref}) when ref == sb_ref do 
+    Logger.info("Info msg type received. SB DOWN")
+    {:keep_state_and_data, []}
+  end
   ### Default ###
 
   def leader(:cast, _event, _data), do: {:keep_state_and_data, []}

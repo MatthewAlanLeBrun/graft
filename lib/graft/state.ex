@@ -34,6 +34,8 @@ defmodule Graft.State do
             faulty_entries: [],
             # pid of sandbox
             sandbox: nil,
+            # ref to sandbox monitor
+            sandbox_ref: nil,
             # result of latest sandbox command
             sandbox_cache: nil
 end
