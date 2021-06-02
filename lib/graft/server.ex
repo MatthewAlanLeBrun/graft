@@ -440,10 +440,7 @@ defmodule Graft.Server do
 
     commit_index =
       if lli > data.commit_index and llt === data.current_term do
-        number_of_matches =
-          Enum.reduce(match_index, 1, fn {server, index}, acc ->
-            if server !== data.me and index >= lli, do: acc + 1, else: acc
-          end)
+        number_of_matches = count_matches(match_index, data.me, lli)
 
         if (number_of_matches > data.server_count / 2) and (data.sandbox_cache !== nil), 
           do: lli, else: data.commit_index
@@ -514,10 +511,17 @@ defmodule Graft.Server do
      [{{:timeout, {:heartbeat, to}}, @heartbeat, :send_heartbeat}]}
   end
 
-  # TODO if majority of matches have already happened then commit the entry.
   def leader(:cast, {:sandbox, reply}, data) do
     Logger.debug("Sandbox calculation complete.")
-    {:keep_state, %Graft.State{data | sandbox_cache: reply}, []}
+    [{i, t, _} | _] = data.log
+    commit_index = case count_matches(data.match_index, data.me, i) do
+      n when n > (data.server_count / 2) -> 
+        if i > data.commit_index and t === data.current_term,
+          do: i,
+        else: data.commit_index
+      _ -> data.commit_index
+    end
+    {:keep_state, %Graft.State{data | sandbox_cache: reply, commit_index: commit_index}, []}
   end
 
   ### Default ###
@@ -628,5 +632,11 @@ defmodule Graft.Server do
     end
 
     Graft.Machine.apply_entry(machine, entry)
+  end
+
+  defp count_matches(match_index, leader, last_index) do
+    Enum.reduce(match_index, 1, fn {server, index}, acc ->
+      if server !== leader and index >= last_index, do: acc + 1, else: acc
+    end)
   end
 end
