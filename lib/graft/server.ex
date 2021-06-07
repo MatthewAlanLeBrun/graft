@@ -1,8 +1,6 @@
 defmodule Graft.Server do
   @moduledoc false
   @heartbeat Application.compile_env(:graft, :heartbeat_timeout)
-  @machine_module Application.compile_env(:graft, :machine)
-  @machine_args Application.compile_env(:graft, :machine_args)
   use GenStateMachine, callback_mode: :state_functions
   require Logger
 
@@ -339,7 +337,7 @@ defmodule Graft.Server do
     Logger.info("New leader: #{inspect(data.me)}.")
 
     # Start sandbox machine
-    {:ok, pid} = Supervisor.start_child(Graft.Supervisor, Graft.Machine.sandbox_child_spec(name, @machine_module, @machine_args))
+    {:ok, pid} = Supervisor.start_child(Graft.Supervisor, Graft.Machine.sandbox_child_spec(name, data.machine))
     Logger.debug("Started leader's sandbox")
     # Monitor the sandbox
     ref = Process.monitor(pid)
@@ -517,13 +515,16 @@ defmodule Graft.Server do
   def leader(:cast, {:sandbox, reply}, data) do
     Logger.debug("Sandbox calculation complete.")
     [{i, t, _} | _] = data.log
+    half_cluster = data.server_count / 2
+
     commit_index = case count_matches(data.match_index, data.me, i) do
-      n when n > (data.server_count / 2) -> 
+      n when n > half_cluster -> 
         if i > data.commit_index and t === data.current_term,
           do: i,
         else: data.commit_index
       _ -> data.commit_index
     end
+
     {:keep_state, %Graft.State{data | sandbox_cache: reply, commit_index: commit_index}, []}
   end
 

@@ -49,6 +49,8 @@ defmodule Graft.Machine do
 
   @doc false
   @impl GenServer
+  def init([state]), do: {:ok, state}
+
   def init([module, args]) do
     {:ok, state} = module.init(args)
     {:ok, {module, state}}
@@ -71,7 +73,13 @@ defmodule Graft.Machine do
   end
 
   @doc false
-  def register(module, machine_args \\ []) do
+  def register(a, b \\ [])
+  def register(machine, :sandbox) when is_pid(machine) do
+    state = :sys.get_state(machine)
+    GenServer.start_link(__MODULE__, [state])
+  end
+
+  def register(module, machine_args) do
     GenServer.start_link(__MODULE__, [module, machine_args])
   end
 
@@ -86,10 +94,10 @@ defmodule Graft.Machine do
   end
 
   @doc false
-  def sandbox_child_spec(server, machine_module, machine_args) do
+  def sandbox_child_spec(server, machine) when is_pid(machine) do
     %{
       id: :"#{server}_sandbox",
-      start: {__MODULE__, :register, [machine_module, machine_args]}
+      start: {__MODULE__, :register, [machine, :sandbox]}
     }
   end
 end
