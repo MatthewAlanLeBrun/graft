@@ -487,6 +487,8 @@ defmodule Graft.Server do
         [{term, entry}]
       end
 
+    faulty = faulties(data.next_index[to], data.commit_index, data.faulty_entries)
+
     {prev_index, prev_term, _prev_enrty} =
       case log do
         [{0, 0, nil}] -> {0, 0, nil}
@@ -500,6 +502,7 @@ defmodule Graft.Server do
       prev_log_term: prev_term,
       entries: entry,
       leader_commit: data.commit_index
+      faulty: faulty
     }
 
     Logger.debug(
@@ -543,9 +546,12 @@ defmodule Graft.Server do
         else: data.commit_index
       _ -> data.commit_index
     end
+
+    # Add entry's index to faulty_entries
+    f = data.faulty_entries ++ [i]
   
     # Keep current state and update sandbox result to indicate a crash
-    {:keep_state, %Graft.State{data | sandbox_cache: :crash, commit_index: commit_index}, []}
+    {:keep_state, %Graft.State{data | sandbox_cache: :crash, commit_index: commit_index, faulty_entries: f}, []}
   end
   ### Default ###
 
@@ -661,5 +667,9 @@ defmodule Graft.Server do
     Enum.reduce(match_index, 1, fn {server, index}, acc ->
       if server !== leader and index >= last_index, do: acc + 1, else: acc
     end)
+  end
+
+  defp faulties(next_i_server, commit_i_leader, faulty_entries_leader) do
+    Enum.filter(faulty_entries_leader, &((&1>=next_i_server) and (&1<=commit_i_leader)))
   end
 end
