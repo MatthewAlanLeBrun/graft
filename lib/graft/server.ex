@@ -528,10 +528,24 @@ defmodule Graft.Server do
     {:keep_state, %Graft.State{data | sandbox_cache: reply, commit_index: commit_index}, []}
   end
 
+  # Sanbox crashes, implying faulty entry. 
+  def leader(:info, {:DOWN, ref, _, _, _}, data = %Graft.State{sandbox_ref: sb_ref}) when ref == sb_ref do 
+    Logger.info("Sandbox DOWN!!!!!!")
 
-  def leader(:info, {:DOWN, ref, _, _, _}, %Graft.State{sandbox_ref: sb_ref}) when ref == sb_ref do 
-    Logger.info("Info msg type received. SB DOWN")
-    {:keep_state_and_data, []}
+    # If majority of replies is already received, increment commit_index
+    [{i, t, _} | _] = data.log
+    half_cluster = data.server_count / 2
+
+    commit_index = case count_matches(data.match_index, data.me, i) do
+      n when n > half_cluster -> 
+        if i > data.commit_index and t === data.current_term,
+          do: i,
+        else: data.commit_index
+      _ -> data.commit_index
+    end
+  
+    # Keep current state and update sandbox result to indicate a crash
+    {:keep_state, %Graft.State{data | sandbox_cache: :crash, commit_index: commit_index}, []}
   end
   ### Default ###
 
