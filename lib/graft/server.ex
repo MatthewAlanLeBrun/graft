@@ -118,6 +118,19 @@ defmodule Graft.Server do
     {:keep_state_and_data, []}
   end
 
+  def follower(:cast, rpc = %Graft.AppendEntriesRPC{faulty: faulties}, data)
+      when faulties !== [] do
+
+    # Append new faulties to faulty_entries list
+    # Note: No need to filter out indices > prev_log_index since faulties are committed
+    new_faulties = 
+      data.faulty_entries
+      |> Kernel.++(faulties)
+
+    {:keep_state, %Graft.State{data | faulty_entries: new_faulties}, 
+      [{:next_event, :cast, %Graft.AppendEntriesRPC{rpc | faulty: []}}]} 
+  end
+
   def follower(
         :cast,
         %Graft.AppendEntriesRPC{
