@@ -1,14 +1,21 @@
 defmodule Graft.MixProject do
   use Mix.Project
 
+  @version "0.2.0"
+  @description "A library for implementing distributed generic replicated state machines using the Raft consensus algorithm"
+  @github "https://github.com/MatthewAlanLeBrun/graft"
+
   def project do
     [
       app: :graft,
-      version: "0.1.0",
+      version: @version,
+      description: @description,
       elixir: "~> 1.9",
+      deps: deps(),
+      package: package(),
+      source_url: @github,
       elixirc_paths: ["lib", "machines"],
       start_permanent: Mix.env() == :prod,
-      deps: deps(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
         coveralls: :test,
@@ -34,5 +41,13 @@ defmodule Graft.MixProject do
       {:excoveralls, "~> 0.10", only: :test},
       {:gen_state_machine, "~> 2.0"}
     ]
+  end
+
+  defp package do
+    %{
+      licenses: ["MIT"],
+      maintainers: ["Matthew Alan Le Brun"],
+      links: %{"GitHub" => @github}
+    }
   end
 end
