@@ -10,6 +10,12 @@ defmodule Graft.Supervisor do
   def init([{my_servers, all_servers}, machine_module, machine_args]) do
     Logger.info("This is node #{node()}, servers on this node are #{inspect(my_servers)}")
 
+    flags = %{
+      strategy: :one_for_one,
+      intensity: 100,
+      period: 2
+    }
+
     children =
       for {name, _node} <- my_servers do
         %{
@@ -19,7 +25,8 @@ defmodule Graft.Supervisor do
         }
       end
 
-    Supervisor.init(children, strategy: :one_for_one)
+#    Supervisor.init(children, strategy: :one_for_one, intensity: 100, period: 2)
+    {:ok, {flags, children}}
   end
 
 

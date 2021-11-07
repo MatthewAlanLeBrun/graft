@@ -1,6 +1,15 @@
 defmodule Graft.Timer do
   @moduledoc false
-  @timer_node :"timer@192.168.0.195"
+  @timer_node :"timer@192.168.0.232"
+  @timer {:timer, @timer_node}
+
+  def timestamp(label) do
+    IO.puts("Sending timestamp to #{inspect @timer}")
+    send @timer, {label, :os.system_time(:millisecond)}
+  end
+
+
+
 
   def start_coordinator do
     spawn(&coordinator/0)

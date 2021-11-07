@@ -59,16 +59,29 @@ defmodule Graft.Machine do
   @doc false
   @impl GenServer
   def handle_call({:apply, entry}, _from, {module, state}) do
+    Logger.info("Applying entry #{inspect entry} to actual machine.")
     {reply, state} = module.handle_entry(entry, state)
     {:reply, reply, {module, state}}
   end
 
   @doc false
   @impl GenServer
-  def handle_cast({:apply, from, entry}, {module, state}) do
-    Logger.debug("Sandbox got asynch request for #{entry}")
+  def handle_cast({:apply, nil, entry}, {module, state}) do
+    Logger.debug("Sandbox got asynch request for #{inspect entry}")
     {reply, state} = module.handle_entry(entry, state)
+
+    {:noreply, {module, state}}
+  end
+
+  @doc false
+  @impl GenServer
+  def handle_cast({:apply, from, entry}, {module, state}) do
+    Logger.debug("Sandbox got asynch request for #{inspect entry}")
+    {reply, state} = module.handle_entry(entry, state)
+
+    # Send reply back to server
     GenStateMachine.cast(from, {:sandbox, {:ok, reply}})
+
     {:noreply, {module, state}}
   end
 
@@ -88,8 +101,11 @@ defmodule Graft.Machine do
   def apply_entry(machine, entry) do
     GenServer.call(machine, {:apply, entry})
   end
+  def apply_entry(machine, entry, :async) do
+    GenServer.cast(machine, {:apply, nil, entry})
+  end
   def apply_entry(machine, entry, :sandbox) do
-    Logger.info("Sending entry #{entry} to sandbox")
+    Logger.debug("Sending entry #{inspect entry} to sandbox #{inspect machine}")
     GenServer.cast(machine, {:apply, self(), entry})
   end
 

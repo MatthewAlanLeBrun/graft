@@ -2,17 +2,17 @@ import Config
 
 config :graft,
   cluster: [
-    {:server1, :"nonode@nohost"},
-    {:server2, :"nonode@nohost"},
-    {:server3, :"nonode@nohost"}
-#    {:server4, :"nonode@nohost"},
-#    {:server5, :"nonode@nohost"}
+    {:s1, :"s1@192.168.0.232"},
+    {:s2, :"s2@192.168.0.232"},
+    {:s3, :"s3@192.168.0.232"},
+    {:s4, :"s4@192.168.0.232"},
+    {:s5, :"s5@192.168.0.232"}
   ],
-  machine: MySumMachine,
+  machine: MathMachine,
   machine_args: [],
-  server_timeout: fn -> :rand.uniform(51)+149 end,
+  server_timeout: fn -> :rand.uniform(150)+150 end,
   heartbeat_timeout: 75
 
 config :logger, :console,
   colors: [info: :green],
-  level: :notice
+  level: :info

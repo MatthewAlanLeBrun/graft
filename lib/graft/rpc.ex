@@ -13,7 +13,7 @@ defmodule Graft.AppendEntriesRPC do
             # leader’s commit_index
             leader_commit: -1,
             # a list of upcoming faulty entries
-            faulty: []
+            faults: []
 end
 
 defmodule Graft.AppendEntriesRPCReply do
