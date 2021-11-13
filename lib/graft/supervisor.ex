@@ -12,8 +12,8 @@ defmodule Graft.Supervisor do
 
     flags = %{
       strategy: :one_for_one,
-      intensity: 100,
-      period: 2
+      intensity: 1000,
+      period: 1
     }
 
     children =

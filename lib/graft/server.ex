@@ -342,7 +342,7 @@ defmodule Graft.Server do
     apply_entry(last_applied+1, data.log, data.machine, data.faulty_entries, :async) 
 
         #    Original:
-    # response = apply_entry(last_applied + 1, data.log, data.machine, data.faulty_entries)
+#    response = apply_entry(last_applied + 1, data.log, data.machine, data.faulty_entries)
 
     {:keep_state, %Graft.State{data | last_applied: last_applied + 1, sandbox_cache: nil},
      [{:reply, data.requests[last_applied + 1], {:ok, response}}, {:next_event, :cast, event}]}
@@ -412,7 +412,7 @@ defmodule Graft.Server do
         {:entry, entry},
         data = %Graft.State{log: log = [{prev_index, _, _} | _]}
       ) do
-    Logger.info(
+    Logger.debug(
       "#{inspect(data.me)} received a request from a client! Index of entry: #{prev_index + 1}."
     )
 
@@ -425,7 +425,7 @@ defmodule Graft.Server do
       end
 
     # Apply entry to sandbox asynchronously
-    Logger.info("Applying entry to sandbox")
+    Logger.debug("Applying entry to sandbox")
     Graft.Machine.apply_entry(data.sandbox, entry, :sandbox)
 
     {:keep_state, %Graft.State{data | log: log, requests: requests}, events}
@@ -511,6 +511,7 @@ defmodule Graft.Server do
         []
       else
         {^next, term, entry} = Enum.reverse(log) |> Enum.at(next)
+# {^next, term, entry} = Enum.at(log, -1 - next)
         [{term, entry}]
       end
 
@@ -521,6 +522,7 @@ defmodule Graft.Server do
       case log do
         [{0, 0, nil}] -> {0, 0, nil}
         _ -> Enum.reverse(log) |> Enum.at(next - 1)
+        # _ -> Enum.at(log, -1 - (next - 1))
       end
 
     faults = data.faulty_entries
@@ -547,7 +549,7 @@ defmodule Graft.Server do
   end
 
   def leader(:cast, {:sandbox, reply}, data) do
-    Logger.info("Sandbox calculation complete.")
+    Logger.debug("Sandbox calculation complete.")
     [{i, t, _} | _] = data.log
     half_cluster = data.server_count / 2
 
@@ -564,13 +566,13 @@ defmodule Graft.Server do
 
   # Sanbox crashes, implying faulty entry. 
   def leader(:info, {:DOWN, ref, _, _, _}, data = %Graft.State{me: {name, _},sandbox_ref: sb_ref}) when ref == sb_ref do 
-    Logger.info("Sandbox #{inspect data.sandbox} DOWN!!!!!!")
+    Logger.debug("Sandbox #{inspect data.sandbox} DOWN!!!!!!")
 
     # If majority of replies is already received, increment commit_index
     [{i, t, _} | _] = data.log
     half_cluster = data.server_count / 2
 
-    Logger.info("Just incase??...")
+    Logger.debug("Just incase??...")
 
     commit_index = case count_matches(data.match_index, data.me, i) do
       n when n > half_cluster -> 
@@ -586,7 +588,7 @@ defmodule Graft.Server do
     # Track pid of new SB
     {_, sb_pid, :worker, [Graft.Machine]} = Supervisor.which_children(Graft.Supervisor)
                                             |> Enum.find(fn {id,_,_,_} -> id == :"#{name}_sandbox" end)
-    Logger.info("New SB pid: #{inspect sb_pid}")
+    Logger.debug("New SB pid: #{inspect sb_pid}")
     # Monitor the sandbox
     ref = Process.monitor(sb_pid)
     Logger.debug("New SB ref: #{inspect ref}")
@@ -701,7 +703,7 @@ defmodule Graft.Server do
         entry
     end
 
-    Logger.info("About to apply #{inspect entry}.")
+    Logger.debug("About to apply #{inspect entry}.")
     Graft.Machine.apply_entry(machine, entry)
   end
   def apply_entry(apply_index, log, machine, faulty_entries, :async) do
@@ -724,8 +726,8 @@ defmodule Graft.Server do
     end)
   end
 
-  defp faulties(next_i_server, commit_i_leader, faulty_entries_leader) do
-    # Logger.info("Looking for faulties between #{next_i_server} and #{commit_i_leader} from #{faulty_entries_leader}.")
-    Enum.filter(faulty_entries_leader, &((&1>=next_i_server) and (&1<=commit_i_leader)))
-  end
+#  defp faulties(next_i_server, commit_i_leader, faulty_entries_leader) do
+#    # Logger.info("Looking for faulties between #{next_i_server} and #{commit_i_leader} from #{faulty_entries_leader}.")
+#    Enum.filter(faulty_entries_leader, &((&1>=next_i_server) and (&1<=commit_i_leader)))
+#  end
 end

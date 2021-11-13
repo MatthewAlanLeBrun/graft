@@ -10,8 +10,8 @@ config :graft,
   ],
   machine: MathMachine,
   machine_args: [],
-  server_timeout: fn -> :rand.uniform(150)+150 end,
-  heartbeat_timeout: 75
+  server_timeout: fn -> :rand.uniform(18)+18 end,
+  heartbeat_timeout: 6
 
 config :logger, :console,
   colors: [info: :green],

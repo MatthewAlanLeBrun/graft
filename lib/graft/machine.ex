@@ -59,7 +59,7 @@ defmodule Graft.Machine do
   @doc false
   @impl GenServer
   def handle_call({:apply, entry}, _from, {module, state}) do
-    Logger.info("Applying entry #{inspect entry} to actual machine.")
+#    Logger.info("Applying entry #{inspect entry} to actual machine.")
     {reply, state} = module.handle_entry(entry, state)
     {:reply, reply, {module, state}}
   end
@@ -68,7 +68,7 @@ defmodule Graft.Machine do
   @impl GenServer
   def handle_cast({:apply, nil, entry}, {module, state}) do
     Logger.debug("Sandbox got asynch request for #{inspect entry}")
-    {reply, state} = module.handle_entry(entry, state)
+    {_reply, state} = module.handle_entry(entry, state)
 
     {:noreply, {module, state}}
   end

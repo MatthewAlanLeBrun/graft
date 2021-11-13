@@ -4,8 +4,12 @@ defmodule Graft.Timer do
   @timer {:timer, @timer_node}
 
   def timestamp(label) do
-    IO.puts("Sending timestamp to #{inspect @timer}")
+#    IO.puts("Sending timestamp to #{inspect @timer}")
     send @timer, {label, :os.system_time(:millisecond)}
+  end
+
+  def memorystamp(label) do
+    send @timer, {label, :erlang.memory(:total)}
   end
 
 

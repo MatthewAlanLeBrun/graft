@@ -3,21 +3,37 @@ defmodule Reqs do
   def start(leader, mode) do
     reqs = get100(mode)
            |> Enum.with_index(1)
-    Graft.Timer.timestamp(:start)
-    for i1 <- 0..9 do
+    # Graft.Timer.timestamp(:start)
+    for i1 <- 0..299 do # 30,000 total requests
+      Graft.Timer.memorystamp(i1*100)
+      IO.puts "Completed request #{i1*100}"
       for {req, i2} <- reqs do
-        Graft.Timer.timestamp({:start, i1*100+i2})
-        ans = Graft.request(leader, req)
-        IO.puts("Ans for #{i1*100+i2}: #{inspect ans}")
-        Graft.Timer.timestamp({:end, i1*100+i2})
+        # Graft.Timer.timestamp({:start, i1*100+i2})
+        Graft.request(leader, req)
+        # IO.puts("Ans for #{i1*100+i2}: #{inspect ans}")
+        # Graft.Timer.timestamp({:end, i1*100+i2})
       end
     end
+    Graft.Timer.memorystamp(30000)
     Graft.Timer.timestamp(:end)
   end
 
+#  def coordinator() do
+#    pid = spawn(fn -> loop() end)
+#  end
+
+#  defp loop() do
+#    receive do 
+#      :restart -> 
+#        Graft.stop
+#        Graft.start(0,0)
+#        Graft.start
+#        loop()
+#    end
+#  end
 
 
-  def get100(:n) do
+  defp get100(:n) do
     [
       {:add, 6},
       {:sub, 85},
@@ -122,7 +138,7 @@ defmodule Reqs do
     ]
   end
 
-  def get100(:f) do
+  defp get100(:f10) do
     [
       {:add, 6},
       {:sub, 85},
@@ -163,7 +179,7 @@ defmodule Reqs do
       {:mul, 6},
       {:mul, 6},
       {:add, 284},
-      #{:div, 0},
+      {:div, 0},
       {:add, 37},
       {:mul, 1},
       {:sub, 29},
@@ -226,5 +242,4 @@ defmodule Reqs do
       {:div, 0}
     ]
   end
-
 end
