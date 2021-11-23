@@ -23,3 +23,13 @@ If you are new to Elixir/mix, check out the [official Elixir webpage](https://el
 ## Documentation
 
 Find the full documentation as well as examples [here](https://hexdocs.pm/graft/Graft.html).
+
+## Testing
+
+After Cloning, get the dependencies
+
+    mix deps.get
+
+Run the tests
+
+    mix test
